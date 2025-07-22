@@ -96,6 +96,10 @@ func (b *cronJobBiz) Update(ctx context.Context, rq *v1.UpdateCronJobRequest) (*
 	if rq.Suspend != nil {
 		cronJobM.Suspend = *rq.Suspend
 	}
+
+	if rq.SmsBatchTemplate != nil {
+		cronJobM.SmsBatchTemplate = conversion.SmsBatchV1ToSmsBatchM(rq.SmsBatchTemplate)
+	}
 	if rq.SuccessHistoryLimit != nil {
 		cronJobM.SuccessHistoryLimit = *rq.SuccessHistoryLimit
 	}

@@ -33,25 +33,44 @@ type saveJob struct {
 }
 
 func (j saveJob) Run() {
-	count, _, err := j.store.Job().List(j.ctx, where.F("cronjob_id", j.cronJob.CronJobID))
+	// 只支持SmsBatch任务类型
+	j.createSmsBatch()
+}
+
+// createSmsBatch 创建SmsBatch任务
+func (j saveJob) createSmsBatch() {
+	count, _, err := j.store.SmsBatch().List(j.ctx, where.F("cronjob_id", j.cronJob.CronJobID))
 	if err != nil {
+		log.Errorw(err, "Failed to list sms batches")
 		return
 	}
-	if count >= known.MaxJobsPerCronJob {
+	if count >= known.MaxJobsPerCronJob { // 复用相同的限制
+		log.Warnw("Max sms batches per cronjob reached", "cronjob_id", j.cronJob.CronJobID)
+		return
+	}
+
+	// 检查SmsBatchTemplate是否存在
+	if j.cronJob.SmsBatchTemplate == nil {
+		log.Errorw(nil, "SmsBatchTemplate is nil", "cronjob_id", j.cronJob.CronJobID)
 		return
 	}
 
 	// To prevent primary key conflicts.
-	job := j.cronJob.JobTemplate
-	job.ID = 0
-	job.CronJobID = &j.cronJob.CronJobID
-	job.UserID = j.cronJob.UserID
-	job.Scope = j.cronJob.Scope
-	job.Name = fmt.Sprintf("job-for-%s", j.cronJob.Name)
-	if err := j.store.Job().Create(j.ctx, job); err != nil {
-		log.Errorw(err, "Failed to create job")
+	smsBatch := j.cronJob.SmsBatchTemplate
+	smsBatch.ID = 0
+	smsBatch.UserID = j.cronJob.UserID
+	smsBatch.Scope = j.cronJob.Scope
+	smsBatch.Name = fmt.Sprintf("smsbatch-for-%s", j.cronJob.Name)
+
+	// 设置CronJobID字段
+	smsBatch.CronJobID = &j.cronJob.CronJobID
+
+	if err := j.store.SmsBatch().Create(j.ctx, smsBatch); err != nil {
+		log.Errorw(err, "Failed to create sms batch")
 		return
 	}
+
+	log.Infow("Created sms batch from cronjob", "cronjob_id", j.cronJob.CronJobID, "batch_id", smsBatch.BatchID)
 }
 
 // Run runs the watcher.
@@ -67,7 +86,9 @@ func (w *Watcher) Run() {
 	for _, cronjob := range cronjobs {
 		jobName := cronJobName(cronjob.CronJobID)
 		//ctx = log.WithContext(ctx, "cronjob_id", cronjob.CronJobID)
-		if cronjob.JobTemplate == nil {
+
+		// 检查任务模板是否存在
+		if !w.hasValidTemplate(cronjob) {
 			continue
 		}
 
@@ -77,6 +98,11 @@ func (w *Watcher) Run() {
 
 		w.jm.AddJob(jobName, cronjob.Schedule, saveJob{store: w.store, ctx: ctx, cronJob: cronjob})
 	}
+}
+
+// hasValidTemplate 检查CronJob是否有有效的任务模板
+func (w *Watcher) hasValidTemplate(cronjob *model.CronJobM) bool {
+	return cronjob.SmsBatchTemplate != nil
 }
 
 // RemoveNonExistentCronJobs removes Cron jobs from the scheduler that no longer exist.

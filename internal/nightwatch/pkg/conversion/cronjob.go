@@ -19,9 +19,11 @@ func CronJobMToCronJobV1(cronJobModel *model.CronJobM) *apiv1.CronJob {
 	var cronJob apiv1.CronJob
 	_ = core.CopyWithConverters(&cronJob, cronJobModel)
 
-	var job apiv1.Job
-	core.Copy(&job, cronJobModel.JobTemplate)
-	cronJob.JobTemplate = &job
+	if cronJobModel.SmsBatchTemplate != nil {
+		var smsBatch apiv1.SmsBatch
+		core.Copy(&smsBatch, cronJobModel.SmsBatchTemplate)
+		cronJob.SmsBatchTemplate = &smsBatch
+	}
 
 	return &cronJob
 }
@@ -32,9 +34,4 @@ func CronJobV1ToCronJobM(cronJob *apiv1.CronJob) *model.CronJobM {
 	var cronJobModel model.CronJobM
 	_ = core.CopyWithConverters(&cronJobModel, cronJob)
 	return &cronJobModel
-}
-
-// CronJobModelToCronJobV1 将数据库模型转换为 API v1 版本的 CronJob (兼容旧接口).
-func CronJobModelToCronJobV1(cronJobM *model.CronJobM) *apiv1.CronJob {
-	return CronJobMToCronJobV1(cronJobM)
 }

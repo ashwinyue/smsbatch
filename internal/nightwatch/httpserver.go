@@ -76,17 +76,6 @@ func (c *ServerConfig) InstallRESTAPI(engine *gin.Engine) {
 			cronjobv1.GET("", handler.ListCronJob)             // 查询CronJob列表
 		}
 
-		// Job相关路由
-		jobv1 := v1.Group("/jobs")
-		{
-			jobv1.POST("", handler.CreateJob)      // 创建Job
-			jobv1.PUT(":jobID", handler.UpdateJob) // 更新Job
-			jobv1.DELETE("", handler.DeleteJob)    // 删除Job
-			jobv1.GET(":jobID", handler.GetJob)    // 查询Job详情
-			jobv1.GET("", handler.ListJob)         // 查询Job列表
-		}
-
-
 	}
 }
 

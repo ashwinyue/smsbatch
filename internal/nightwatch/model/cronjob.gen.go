@@ -22,7 +22,7 @@ type CronJobM struct {
 	Status              *CronJobStatus `gorm:"column:status;type:longtext;comment:CronJob 任务状态" json:"status"`                                                               // CronJob 任务状态
 	ConcurrencyPolicy   int32          `gorm:"column:concurrency_policy;type:tinyint(4);not null;default:1;comment:作业处理方式（1 串行，2 并行，3 替换）" json:"concurrency_policy"`        // 作业处理方式（1 串行，2 并行，3 替换）
 	Suspend             int32          `gorm:"column:suspend;type:tinyint(4);not null;comment:是否挂起（1 挂起，0 不挂起）" json:"suspend"`                                              // 是否挂起（1 挂起，0 不挂起）
-	JobTemplate         *JobM          `gorm:"column:job_template;type:longtext;comment:Job 模版" json:"job_template"`                                                         // Job 模版
+	SmsBatchTemplate    *SmsBatchM     `gorm:"column:smsbatch_template;type:longtext;comment:SmsBatch 模版" json:"smsbatch_template"`                                          // SmsBatch 模版
 	SuccessHistoryLimit int32          `gorm:"column:success_history_limit;type:tinyint(4);not null;default:10;comment:要保留的成功完成作业的数量。值必须是非负整数" json:"success_history_limit"` // 要保留的成功完成作业的数量。值必须是非负整数
 	FailedHistoryLimit  int32          `gorm:"column:failed_history_limit;type:tinyint(4);not null;default:5;comment:要保留的失败完成作业的数量。值必须是非负整数。" json:"failed_history_limit"`   // 要保留的失败完成作业的数量。值必须是非负整数。
 	CreatedAt           time.Time      `gorm:"column:created_at;type:timestamp;not null;default:current_timestamp();comment:创建时间" json:"created_at"`                         // 创建时间

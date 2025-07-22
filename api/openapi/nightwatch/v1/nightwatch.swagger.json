@@ -394,7 +394,7 @@
         "parameters": [
           {
             "name": "offset",
-            "description": "offset 表示偏移量\n@gotags: form:\"offset\"",
+            "description": "offset 表示偏移量\r\n@gotags: form:\"offset\"",
             "in": "query",
             "required": false,
             "type": "string",
@@ -402,7 +402,7 @@
           },
           {
             "name": "limit",
-            "description": "limit 表示每页数量\n@gotags: form:\"limit\"",
+            "description": "limit 表示每页数量\r\n@gotags: form:\"limit\"",
             "in": "query",
             "required": false,
             "type": "string",
@@ -504,7 +504,7 @@
         "parameters": [
           {
             "name": "postID",
-            "description": "postID 表示要获取的文章 ID\n@gotags: uri:\"postID\"",
+            "description": "postID 表示要获取的文章 ID\r\n@gotags: uri:\"postID\"",
             "in": "path",
             "required": true,
             "type": "string"
@@ -573,6 +573,9 @@
         "suspend": {
           "type": "integer",
           "format": "int32"
+        },
+        "smsBatchTemplate": {
+          "$ref": "#/definitions/v1SmsBatch"
         },
         "successHistoryLimit": {
           "type": "integer",
@@ -773,7 +776,7 @@
       ],
       "default": "ForbidConcurrent",
       "description": "- ForbidConcurrent: ForbidConcurrent 禁止并发运行，如果先前的作业尚未完成，则跳过下一个运行。\n - AllowConcurrent: AllowConcurrent 允许 CronJobs 并发运行。\n - ReplaceConcurren: ReplaceConcurrent 取消当前正在运行的作业，并用一个新的作业替代它。",
-      "title": "ConcurrencyPolicy 描述了作业的处理方式。只能指定以下并发策略中的一个。\n如果未指定以下任何策略，则默认策略为 ForbidConcurrent"
+      "title": "ConcurrencyPolicy 描述了作业的处理方式。只能指定以下并发策略中的一个。\r\n如果未指定以下任何策略，则默认策略为 ForbidConcurrent"
     },
     "v1CreateCronJobRequest": {
       "type": "object",
@@ -847,9 +850,9 @@
           "format": "int32",
           "title": "是否挂起（1 挂起，0 不挂起, 默认 0）"
         },
-        "jobTemplate": {
-          "$ref": "#/definitions/v1Job",
-          "title": "Job 模版"
+        "smsBatchTemplate": {
+          "$ref": "#/definitions/v1SmsBatch",
+          "title": "SmsBatch 模版"
         },
         "successHistoryLimit": {
           "type": "integer",
@@ -1131,6 +1134,10 @@
         },
         "messageType": {
           "type": "string"
+        },
+        "concurrency": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -1281,6 +1288,119 @@
         }
       },
       "title": "UpdatePostRequest 表示更新文章请求"
+    },
+    "v1SmsBatch": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "SMS批次名称"
+        },
+        "batchID": {
+          "type": "string",
+          "title": "SMS批次ID"
+        },
+        "userID": {
+          "type": "string",
+          "title": "创建人"
+        },
+        "scope": {
+          "type": "string",
+          "title": "SMS批次作用域"
+        },
+        "description": {
+          "type": "string",
+          "title": "SMS批次描述"
+        },
+        "campaignID": {
+          "type": "string",
+          "title": "活动ID"
+        },
+        "taskID": {
+          "type": "string",
+          "title": "任务ID"
+        },
+        "tableStorageName": {
+          "type": "string",
+          "title": "表存储名称"
+        },
+        "contentID": {
+          "type": "string",
+          "title": "内容ID"
+        },
+        "content": {
+          "type": "string",
+          "title": "内容"
+        },
+        "contentSignature": {
+          "type": "string",
+          "title": "内容签名"
+        },
+        "url": {
+          "type": "string",
+          "title": "URL"
+        },
+        "combineMemberIDWithURL": {
+          "type": "boolean",
+          "title": "是否将成员ID与URL结合"
+        },
+        "autoTrigger": {
+          "type": "boolean",
+          "title": "自动触发"
+        },
+        "scheduleTime": {
+          "type": "string",
+          "format": "date-time",
+          "title": "调度时间"
+        },
+        "extCode": {
+          "type": "string",
+          "title": "扩展代码"
+        },
+        "taskCode": {
+          "type": "string",
+          "title": "任务代码"
+        },
+        "providerType": {
+          "type": "string",
+          "title": "提供商类型"
+        },
+        "messageType": {
+          "type": "string",
+          "title": "消息类型"
+        },
+        "messageCategory": {
+          "type": "string",
+          "title": "消息类别"
+        },
+        "region": {
+          "type": "string",
+          "title": "区域"
+        },
+        "source": {
+          "type": "string",
+          "title": "来源"
+        },
+        "watcher": {
+          "type": "string",
+          "title": "监视器"
+        },
+        "suspend": {
+          "type": "boolean",
+          "title": "是否挂起"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "title": "创建时间"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "title": "更新时间"
+        }
+      },
+      "title": "SmsBatch 表示SMS批次任务的配置"
     },
     "v1TrainParams": {
       "type": "object",

@@ -139,7 +139,7 @@
         "parameters": [
           {
             "name": "offset",
-            "description": "offset 表示偏移量\n@gotags: form:\"offset\"",
+            "description": "offset 表示偏移量\r\n@gotags: form:\"offset\"",
             "in": "query",
             "required": false,
             "type": "string",
@@ -147,7 +147,7 @@
           },
           {
             "name": "limit",
-            "description": "limit 表示每页数量\n@gotags: form:\"limit\"",
+            "description": "limit 表示每页数量\r\n@gotags: form:\"limit\"",
             "in": "query",
             "required": false,
             "type": "string",
@@ -249,7 +249,7 @@
         "parameters": [
           {
             "name": "postID",
-            "description": "postID 表示要获取的文章 ID\n@gotags: uri:\"postID\"",
+            "description": "postID 表示要获取的文章 ID\r\n@gotags: uri:\"postID\"",
             "in": "path",
             "required": true,
             "type": "string"
@@ -319,7 +319,7 @@
         "parameters": [
           {
             "name": "offset",
-            "description": "offset 表示偏移量\n@gotags: form:\"offset\"",
+            "description": "offset 表示偏移量\r\n@gotags: form:\"offset\"",
             "in": "query",
             "required": false,
             "type": "string",
@@ -327,7 +327,7 @@
           },
           {
             "name": "limit",
-            "description": "limit 表示每页数量\n@gotags: form:\"limit\"",
+            "description": "limit 表示每页数量\r\n@gotags: form:\"limit\"",
             "in": "query",
             "required": false,
             "type": "string",
@@ -391,7 +391,7 @@
         "parameters": [
           {
             "name": "userID",
-            "description": "userID 表示用户 ID\n@gotags: uri:\"userID\"",
+            "description": "userID 表示用户 ID\r\n@gotags: uri:\"userID\"",
             "in": "path",
             "required": true,
             "type": "string"
@@ -421,7 +421,7 @@
         "parameters": [
           {
             "name": "userID",
-            "description": "userID 表示用户 ID\n@gotags: uri:\"userID\"",
+            "description": "userID 表示用户 ID\r\n@gotags: uri:\"userID\"",
             "in": "path",
             "required": true,
             "type": "string"

@@ -3,7 +3,7 @@ syntax = "proto3";
 package nightwatch.v1;
 
 import "google/protobuf/timestamp.proto";
-import "nightwatch/v1/job.proto";
+import "nightwatch/v1/sms_batch.proto";
 
 option go_package = "github.com/ashwinyue/dcp/pkg/api/nightwatch/v1;v1";
 
@@ -40,8 +40,8 @@ message CronJob {
     ConcurrencyPolicy concurrencyPolicy = 8;
     // 是否挂起（1 挂起，0 不挂起, 默认 0）
     int32 suspend = 9;
-    // Job 模版
-    Job jobTemplate = 10;
+    // SmsBatch 模版
+    SmsBatch smsBatchTemplate = 10;
     // 要保留的成功完成作业的数量。值必须是非负整数。默认值为 10。
     int32 successHistoryLimit  = 11;
     // 要保留的失败完成作业的数量。值必须是非负整数。  默认值为 5。
@@ -74,6 +74,7 @@ message UpdateCronJobRequest{
     optional string schedule = 6;
     optional ConcurrencyPolicy concurrencyPolicy = 8;
     optional int32 suspend = 9;
+    optional SmsBatch smsBatchTemplate = 10;
     optional int32 successHistoryLimit  = 11;
     optional int32 failedHistoryLimit = 12;
 }

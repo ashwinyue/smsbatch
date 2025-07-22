@@ -12,45 +12,46 @@ const TableNameSmsBatchM = "nw_sms_batch"
 
 // SmsBatchM mapped from table <nw_sms_batch>
 type SmsBatchM struct {
-	ID                    int64                  `gorm:"column:id;type:bigint(20) unsigned;primaryKey;autoIncrement:true;comment:主键 ID" json:"id"`                                                    // 主键 ID
-	BatchID               string                 `gorm:"column:batch_id;type:varchar(100);not null;uniqueIndex:idx_batch_id;comment:SMS批次ID" json:"batch_id"`                                           // SMS批次ID
-	UserID                string                 `gorm:"column:user_id;type:varchar(100);not null;index:idx_user_id,priority:1;comment:创建人" json:"user_id"`                                               // 创建人
-	Scope                 string                 `gorm:"column:scope;type:varchar(256);not null;index:idx_scope,priority:1;default:default;comment:SMS批次作用域" json:"scope"`                                 // SMS批次作用域
-	Name                  string                 `gorm:"column:name;type:varchar(255);not null;comment:SMS批次名称" json:"name"`                                                                               // SMS批次名称
-	Description           string                 `gorm:"column:description;type:varchar(256);not null;comment:SMS批次描述" json:"description"`                                                                 // SMS批次描述
-	CampaignID            string                 `gorm:"column:campaign_id;type:varchar(100);not null;index:idx_campaign_id,priority:1;comment:运营活动ID" json:"campaign_id"`                                 // 运营活动ID
-	CampaignName          string                 `gorm:"column:campaign_name;type:varchar(255);not null;comment:运营活动名称" json:"campaign_name"`                                                             // 运营活动名称
-	MarketingProgramID    string                 `gorm:"column:marketing_program_id;type:varchar(100);comment:市场营销程序ID" json:"marketing_program_id"`                                                      // 市场营销程序ID
-	TaskID                string                 `gorm:"column:task_id;type:varchar(100);not null;comment:任务ID" json:"task_id"`                                                                              // 任务ID
-	TableStorageName      string                 `gorm:"column:table_name;type:varchar(255);not null;comment:Table Storage名称" json:"table_name"`                                                             // Table Storage名称
-	ContentID             string                 `gorm:"column:content_id;type:varchar(100);comment:短信模板内容ID" json:"content_id"`                                                                            // 短信模板内容ID
-	Content               string                 `gorm:"column:content;type:text;comment:短信模板内容" json:"content"`                                                                                             // 短信模板内容
-	ContentSignature      string                 `gorm:"column:content_signature;type:varchar(100);comment:短信模板签名" json:"content_signature"`                                                               // 短信模板签名
-	URL                   string                 `gorm:"column:url;type:text;comment:短信模板包含的用户可点击的长链接" json:"url"`                                                                                        // 短信模板包含的用户可点击的长链接
-	CombineMemberIDWithURL bool                   `gorm:"column:combine_member_id_with_url;type:tinyint(1);not null;default:0;comment:是否开启短链返回memberId" json:"combine_member_id_with_url"`                   // 是否开启短链返回memberId
-	AutoTrigger           bool                   `gorm:"column:auto_trigger;type:tinyint(1);not null;default:0;comment:是否自动触发" json:"auto_trigger"`                                                        // 是否自动触发
-	ScheduleTime          *time.Time             `gorm:"column:schedule_time;type:datetime;comment:Campaign Management的活动调度时间" json:"schedule_time"`                                                      // Campaign Management的活动调度时间
-	ExtCode               int32                  `gorm:"column:ext_code;type:int(11);not null;default:0;comment:短信扩展码" json:"ext_code"`                                                                     // 短信扩展码
-	TaskCode              string                 `gorm:"column:task_code;type:varchar(100);comment:任务代码，用于判断队列消息是否同一批次" json:"task_code"`                                                              // 任务代码，用于判断队列消息是否同一批次
-	ProviderType          string                 `gorm:"column:provider_type;type:varchar(32);not null;default:'WE';comment:短信服务提供商类型" json:"provider_type"`                                            // 短信服务提供商类型
-	MessageType           string                 `gorm:"column:message_type;type:varchar(32);not null;default:'SMS';comment:消息类型(SMS/MMS)" json:"message_type"`                                            // 消息类型(SMS/MMS)
-	MessageCategory       string                 `gorm:"column:message_category;type:varchar(32);comment:短信类别(普通短信/营销短信)" json:"message_category"`                                                       // 短信类别(普通短信/营销短信)
-	Region                string                 `gorm:"column:region;type:varchar(32);comment:区域" json:"region"`                                                                                             // 区域
-	Source                string                 `gorm:"column:source;type:varchar(32);comment:来源" json:"source"`                                                                                             // 来源
-	Watcher               string                 `gorm:"column:watcher;type:varchar(255);not null;default:'smsbatch';comment:nightwatch watcher 名字" json:"watcher"`                                        // nightwatch watcher 名字
-	Suspend               int32                  `gorm:"column:suspend;type:tinyint(4);not null;default:0;comment:是否挂起（1 挂起，0 不挂起）" json:"suspend"`                                                     // 是否挂起（1 挂起，0 不挂起）
-	Params                *SmsBatchParams        `gorm:"column:params;type:longtext;comment:SMS批次参数" json:"params"`                                                                                        // SMS批次参数
-	Results               *SmsBatchResults       `gorm:"column:results;type:longtext;comment:SMS批次执行结果" json:"results"`                                                                                    // SMS批次执行结果
-	Status                string                 `gorm:"column:status;type:varchar(32);not null;default:'Pending';comment:SMS批次状态" json:"status"`                                                            // SMS批次状态
-	Conditions            *SmsBatchConditions    `gorm:"column:conditions;type:longtext;comment:SMS批次运行状态" json:"conditions"`                                                                              // SMS批次运行状态
-	CurrentState          string                 `gorm:"column:current_state;type:varchar(32);not null;default:'Initial';comment:当前状态机状态" json:"current_state"`                                           // 当前状态机状态
-	CurrentPhase          string                 `gorm:"column:current_phase;type:varchar(32);comment:当前执行阶段" json:"current_phase"`                                                                         // 当前执行阶段
-	PreparationRetries    int32                  `gorm:"column:preparation_retries;type:int(11);not null;default:0;comment:准备阶段重试次数" json:"preparation_retries"`                                         // 准备阶段重试次数
-	DeliveryRetries       int32                  `gorm:"column:delivery_retries;type:int(11);not null;default:0;comment:发送阶段重试次数" json:"delivery_retries"`                                               // 发送阶段重试次数
-	StartedAt             time.Time              `gorm:"column:started_at;type:datetime;not null;default:'0000-00-00 00:00:00';comment:SMS批次开始时间" json:"started_at"`                                     // SMS批次开始时间
-	EndedAt               time.Time              `gorm:"column:ended_at;type:datetime;not null;default:'0000-00-00 00:00:00';comment:SMS批次结束时间" json:"ended_at"`                                         // SMS批次结束时间
-	CreatedAt             time.Time              `gorm:"column:created_at;type:timestamp;not null;default:current_timestamp();comment:创建时间" json:"created_at"`                                            // 创建时间
-	UpdatedAt             time.Time              `gorm:"column:updated_at;type:timestamp;not null;default:current_timestamp();comment:更新时间" json:"updated_at"`                                            // 更新时间
+	ID                     int64               `gorm:"column:id;type:bigint(20) unsigned;primaryKey;autoIncrement:true;comment:主键 ID" json:"id"`                                        // 主键 ID
+	BatchID                string              `gorm:"column:batch_id;type:varchar(100);not null;uniqueIndex:idx_batch_id;comment:SMS批次ID" json:"batch_id"`                             // SMS批次ID
+	UserID                 string              `gorm:"column:user_id;type:varchar(100);not null;index:idx_user_id,priority:1;comment:创建人" json:"user_id"`                               // 创建人
+	Scope                  string              `gorm:"column:scope;type:varchar(256);not null;index:idx_scope,priority:1;default:default;comment:SMS批次作用域" json:"scope"`                // SMS批次作用域
+	CronJobID              *string             `gorm:"column:cronjob_id;type:varchar(100);index:idx_cronjob_id,priority:1;comment:CronJob ID，可选" json:"cronjob_id"`                     // CronJob ID，可选
+	Name                   string              `gorm:"column:name;type:varchar(255);not null;comment:SMS批次名称" json:"name"`                                                              // SMS批次名称
+	Description            string              `gorm:"column:description;type:varchar(256);not null;comment:SMS批次描述" json:"description"`                                                // SMS批次描述
+	CampaignID             string              `gorm:"column:campaign_id;type:varchar(100);not null;index:idx_campaign_id,priority:1;comment:运营活动ID" json:"campaign_id"`                // 运营活动ID
+	CampaignName           string              `gorm:"column:campaign_name;type:varchar(255);not null;comment:运营活动名称" json:"campaign_name"`                                             // 运营活动名称
+	MarketingProgramID     string              `gorm:"column:marketing_program_id;type:varchar(100);comment:市场营销程序ID" json:"marketing_program_id"`                                      // 市场营销程序ID
+	TaskID                 string              `gorm:"column:task_id;type:varchar(100);not null;comment:任务ID" json:"task_id"`                                                           // 任务ID
+	TableStorageName       string              `gorm:"column:table_name;type:varchar(255);not null;comment:Table Storage名称" json:"table_name"`                                          // Table Storage名称
+	ContentID              string              `gorm:"column:content_id;type:varchar(100);comment:短信模板内容ID" json:"content_id"`                                                          // 短信模板内容ID
+	Content                string              `gorm:"column:content;type:text;comment:短信模板内容" json:"content"`                                                                          // 短信模板内容
+	ContentSignature       string              `gorm:"column:content_signature;type:varchar(100);comment:短信模板签名" json:"content_signature"`                                              // 短信模板签名
+	URL                    string              `gorm:"column:url;type:text;comment:短信模板包含的用户可点击的长链接" json:"url"`                                                                        // 短信模板包含的用户可点击的长链接
+	CombineMemberIDWithURL bool                `gorm:"column:combine_member_id_with_url;type:tinyint(1);not null;default:0;comment:是否开启短链返回memberId" json:"combine_member_id_with_url"` // 是否开启短链返回memberId
+	AutoTrigger            bool                `gorm:"column:auto_trigger;type:tinyint(1);not null;default:0;comment:是否自动触发" json:"auto_trigger"`                                       // 是否自动触发
+	ScheduleTime           *time.Time          `gorm:"column:schedule_time;type:datetime;comment:Campaign Management的活动调度时间" json:"schedule_time"`                                      // Campaign Management的活动调度时间
+	ExtCode                int32               `gorm:"column:ext_code;type:int(11);not null;default:0;comment:短信扩展码" json:"ext_code"`                                                   // 短信扩展码
+	TaskCode               string              `gorm:"column:task_code;type:varchar(100);comment:任务代码，用于判断队列消息是否同一批次" json:"task_code"`                                                 // 任务代码，用于判断队列消息是否同一批次
+	ProviderType           string              `gorm:"column:provider_type;type:varchar(32);not null;default:'WE';comment:短信服务提供商类型" json:"provider_type"`                              // 短信服务提供商类型
+	MessageType            string              `gorm:"column:message_type;type:varchar(32);not null;default:'SMS';comment:消息类型(SMS/MMS)" json:"message_type"`                           // 消息类型(SMS/MMS)
+	MessageCategory        string              `gorm:"column:message_category;type:varchar(32);comment:短信类别(普通短信/营销短信)" json:"message_category"`                                        // 短信类别(普通短信/营销短信)
+	Region                 string              `gorm:"column:region;type:varchar(32);comment:区域" json:"region"`                                                                         // 区域
+	Source                 string              `gorm:"column:source;type:varchar(32);comment:来源" json:"source"`                                                                         // 来源
+	Watcher                string              `gorm:"column:watcher;type:varchar(255);not null;default:'smsbatch';comment:nightwatch watcher 名字" json:"watcher"`                       // nightwatch watcher 名字
+	Suspend                int32               `gorm:"column:suspend;type:tinyint(4);not null;default:0;comment:是否挂起（1 挂起，0 不挂起）" json:"suspend"`                                       // 是否挂起（1 挂起，0 不挂起）
+	Params                 *SmsBatchParams     `gorm:"column:params;type:longtext;comment:SMS批次参数" json:"params"`                                                                       // SMS批次参数
+	Results                *SmsBatchResults    `gorm:"column:results;type:longtext;comment:SMS批次执行结果" json:"results"`                                                                   // SMS批次执行结果
+	Status                 string              `gorm:"column:status;type:varchar(32);not null;default:'Pending';comment:SMS批次状态" json:"status"`                                         // SMS批次状态
+	Conditions             *SmsBatchConditions `gorm:"column:conditions;type:longtext;comment:SMS批次运行状态" json:"conditions"`                                                             // SMS批次运行状态
+	CurrentState           string              `gorm:"column:current_state;type:varchar(32);not null;default:'Initial';comment:当前状态机状态" json:"current_state"`                           // 当前状态机状态
+	CurrentPhase           string              `gorm:"column:current_phase;type:varchar(32);comment:当前执行阶段" json:"current_phase"`                                                       // 当前执行阶段
+	PreparationRetries     int32               `gorm:"column:preparation_retries;type:int(11);not null;default:0;comment:准备阶段重试次数" json:"preparation_retries"`                          // 准备阶段重试次数
+	DeliveryRetries        int32               `gorm:"column:delivery_retries;type:int(11);not null;default:0;comment:发送阶段重试次数" json:"delivery_retries"`                                // 发送阶段重试次数
+	StartedAt              time.Time           `gorm:"column:started_at;type:datetime;not null;default:'0000-00-00 00:00:00';comment:SMS批次开始时间" json:"started_at"`                      // SMS批次开始时间
+	EndedAt                time.Time           `gorm:"column:ended_at;type:datetime;not null;default:'0000-00-00 00:00:00';comment:SMS批次结束时间" json:"ended_at"`                          // SMS批次结束时间
+	CreatedAt              time.Time           `gorm:"column:created_at;type:timestamp;not null;default:current_timestamp();comment:创建时间" json:"created_at"`                            // 创建时间
+	UpdatedAt              time.Time           `gorm:"column:updated_at;type:timestamp;not null;default:current_timestamp();comment:更新时间" json:"updated_at"`                            // 更新时间
 }
 
 // SmsBatchParams SMS批次参数
@@ -66,33 +67,33 @@ type SmsBatchParams struct {
 
 // SmsBatchResults SMS批次执行结果
 type SmsBatchResults struct {
-	BatchID            string                    `json:"batch_id,omitempty"`            // 批次ID
-	PreparationStats   *SmsBatchPhaseStats       `json:"preparation_stats,omitempty"`   // 准备阶段统计
-	DeliveryStats      *SmsBatchPhaseStats       `json:"delivery_stats,omitempty"`      // 发送阶段统计
-	TotalMessages      int64                     `json:"total_messages,omitempty"`      // 总消息数
-	ProcessedMessages  int64                     `json:"processed_messages,omitempty"`  // 已处理消息数
-	SuccessMessages    int64                     `json:"success_messages,omitempty"`    // 成功消息数
-	FailedMessages     int64                     `json:"failed_messages,omitempty"`     // 失败消息数
-	ProgressPercent    float64                   `json:"progress_percent,omitempty"`    // 进度百分比
-	CurrentPhase       string                    `json:"current_phase,omitempty"`       // 当前阶段
-	CurrentState       string                    `json:"current_state,omitempty"`       // 当前状态
-	PartitionStatuses  []*SmsBatchPartitionStatus `json:"partition_statuses,omitempty"`  // 分区状态列表
-	ErrorMessage       string                    `json:"error_message,omitempty"`       // 错误消息
-	RetryCount         int32                     `json:"retry_count,omitempty"`         // 重试次数
+	BatchID           string                     `json:"batch_id,omitempty"`           // 批次ID
+	PreparationStats  *SmsBatchPhaseStats        `json:"preparation_stats,omitempty"`  // 准备阶段统计
+	DeliveryStats     *SmsBatchPhaseStats        `json:"delivery_stats,omitempty"`     // 发送阶段统计
+	TotalMessages     int64                      `json:"total_messages,omitempty"`     // 总消息数
+	ProcessedMessages int64                      `json:"processed_messages,omitempty"` // 已处理消息数
+	SuccessMessages   int64                      `json:"success_messages,omitempty"`   // 成功消息数
+	FailedMessages    int64                      `json:"failed_messages,omitempty"`    // 失败消息数
+	ProgressPercent   float64                    `json:"progress_percent,omitempty"`   // 进度百分比
+	CurrentPhase      string                     `json:"current_phase,omitempty"`      // 当前阶段
+	CurrentState      string                     `json:"current_state,omitempty"`      // 当前状态
+	PartitionStatuses []*SmsBatchPartitionStatus `json:"partition_statuses,omitempty"` // 分区状态列表
+	ErrorMessage      string                     `json:"error_message,omitempty"`      // 错误消息
+	RetryCount        int32                      `json:"retry_count,omitempty"`        // 重试次数
 }
 
 // SmsBatchPhaseStats SMS批次阶段统计
 type SmsBatchPhaseStats struct {
-	Total           int64                        `json:"total,omitempty"`           // 总数
-	Processed       int64                        `json:"processed,omitempty"`       // 已处理数
-	Success         int64                        `json:"success,omitempty"`         // 成功数
-	Failed          int64                        `json:"failed,omitempty"`          // 失败数
-	Percent         float64                      `json:"percent,omitempty"`         // 百分比
-	StartTime       *time.Time                   `json:"start_time,omitempty"`      // 开始时间
-	EndTime         *time.Time                   `json:"end_time,omitempty"`        // 结束时间
-	DurationSeconds int64                        `json:"duration_seconds,omitempty"` // 持续时间(秒)
-	RetryCount      int32                        `json:"retry_count,omitempty"`     // 重试次数
-	Partitions      []*SmsBatchPartitionStatus   `json:"partitions,omitempty"`      // 分区状态
+	Total           int64                      `json:"total,omitempty"`            // 总数
+	Processed       int64                      `json:"processed,omitempty"`        // 已处理数
+	Success         int64                      `json:"success,omitempty"`          // 成功数
+	Failed          int64                      `json:"failed,omitempty"`           // 失败数
+	Percent         float64                    `json:"percent,omitempty"`          // 百分比
+	StartTime       *time.Time                 `json:"start_time,omitempty"`       // 开始时间
+	EndTime         *time.Time                 `json:"end_time,omitempty"`         // 结束时间
+	DurationSeconds int64                      `json:"duration_seconds,omitempty"` // 持续时间(秒)
+	RetryCount      int32                      `json:"retry_count,omitempty"`      // 重试次数
+	Partitions      []*SmsBatchPartitionStatus `json:"partitions,omitempty"`       // 分区状态
 }
 
 // SmsBatchPartitionStatus SMS批次分区状态
