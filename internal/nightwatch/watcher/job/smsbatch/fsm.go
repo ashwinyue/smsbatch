@@ -7,18 +7,18 @@ import (
 	fsmutil "github.com/ashwinyue/dcp/internal/pkg/util/fsm"
 )
 
-// StateMachine represents a finite state machine for managing SMS batch processing jobs.
+// StateMachine represents a finite state machine for managing SMS batch processing.
 type StateMachine struct {
-	Watcher *Watcher
-	Job     *model.JobM
-	FSM     *fsm.FSM
+	Watcher  *Watcher
+	SmsBatch *model.SmsBatchM
+	FSM      *fsm.FSM
 }
 
-// NewStateMachine initializes a new StateMachine with the given initial state, watcher, and job.
+// NewStateMachine initializes a new StateMachine with the given initial state, watcher, and SMS batch.
 // It configures the FSM with defined events and their corresponding state transitions,
 // as well as callbacks for entering specific states.
-func NewStateMachine(initial string, watcher *Watcher, job *model.JobM) *StateMachine {
-	sm := &StateMachine{Watcher: watcher, Job: job}
+func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM) *StateMachine {
+	sm := &StateMachine{Watcher: watcher, SmsBatch: smsBatch}
 
 	sm.FSM = fsm.NewFSM(
 		initial,

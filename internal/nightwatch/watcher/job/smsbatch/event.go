@@ -18,24 +18,24 @@ import (
 
 // PreparationExecute handles the SMS preparation phase.
 func (sm *StateMachine) PreparationExecute(ctx context.Context, event *fsm.Event) error {
-	// Set default job params.
-	SetDefaultJobParams(sm.Job)
+	// Set default SMS batch params.
+	SetDefaultSmsBatchParams(sm.SmsBatch)
 
 	// Skip the preparation if the operation has already been performed (idempotency check)
-	if ShouldSkipOnIdempotency(sm.Job, event.FSM.Current()) {
+	if ShouldSkipOnIdempotency(sm.SmsBatch, event.FSM.Current()) {
 		return nil
 	}
 
 	time.Sleep(2 * time.Second)
 
-	// Initialize job results if they are not already set
-	if sm.Job.Results == nil {
-		sm.Job.Results = &model.JobResults{}
+	// Initialize SMS batch results if they are not already set
+	if sm.SmsBatch.Results == nil {
+		sm.SmsBatch.Results = &model.SmsBatchResults{}
 	}
 
-	// Initialize SMS batch results using MessageBatch field
-	if (*v1.JobResults)(sm.Job.Results).MessageBatch == nil {
-		(*v1.JobResults)(sm.Job.Results).MessageBatch = &v1.MessageBatchResults{}
+	// Initialize SMS batch phase stats
+	if sm.SmsBatch.Results.PreparationStats == nil {
+		sm.SmsBatch.Results.PreparationStats = &model.SmsBatchPhaseStats{}
 	}
 
 	// Simulate SMS preparation process
@@ -46,45 +46,50 @@ func (sm *StateMachine) PreparationExecute(ctx context.Context, event *fsm.Event
 	}
 
 	// 2. Process and pack SMS data
-	packedDataPath := path.Job.Path(sm.Job.JobID, "sms_packed_data")
+	packedDataPath := path.Job.Path(sm.SmsBatch.BatchID, "sms_packed_data")
 	if err := sm.Watcher.Minio.Write(ctx, packedDataPath, data); err != nil {
 		return err
 	}
 
 	// Update SMS batch results
-	msgBatchResults := (*v1.JobResults)(sm.Job.Results).MessageBatch
-
-	// Store packed data path in current phase (preparation)
-	msgBatchResults.CurrentPhase = ptr.To("preparation")
+	sm.SmsBatch.Results.CurrentPhase = "preparation"
 
 	// 3. Update statistics
-	msgBatchResults.PreparationStats = &v1.MessageBatchPhaseStats{
-		Processed: ptr.To(int64(len(data))),
-		Success:   ptr.To(int64(len(data))),
-		Failed:    ptr.To(int64(0)),
-		StartTime: ptr.To(time.Now().Unix()),
-		EndTime:   ptr.To(time.Now().Unix()),
+	now := time.Now()
+	sm.SmsBatch.Results.PreparationStats = &model.SmsBatchPhaseStats{
+		Processed: int64(len(data)),
+		Success:   int64(len(data)),
+		Failed:    int64(0),
+		StartTime: &now,
+		EndTime:   &now,
 	}
-	msgBatchResults.ProcessedMessages = ptr.To(int64(len(data)))
-	msgBatchResults.SuccessMessages = ptr.To(int64(len(data)))
-	msgBatchResults.FailedMessages = ptr.To(int64(0))
+	sm.SmsBatch.Results.ProcessedMessages = int64(len(data))
+	sm.SmsBatch.Results.SuccessMessages = int64(len(data))
+	sm.SmsBatch.Results.FailedMessages = int64(0)
 
-	sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), jobconditionsutil.TrueCondition(event.FSM.Current())))
 	return nil
 }
 
 // DeliveryExecute handles the SMS delivery phase.
 func (sm *StateMachine) DeliveryExecute(ctx context.Context, event *fsm.Event) error {
-	if ShouldSkipOnIdempotency(sm.Job, event.FSM.Current()) {
+	if ShouldSkipOnIdempotency(sm.SmsBatch, event.FSM.Current()) {
 		return nil
 	}
 
-	// Get SMS batch results
-	msgBatchResults := (*v1.JobResults)(sm.Job.Results).MessageBatch
+	// Initialize SMS batch results if they are not already set
+	if sm.SmsBatch.Results == nil {
+		sm.SmsBatch.Results = &model.SmsBatchResults{}
+	}
+
+	// Initialize SMS batch delivery stats
+	if sm.SmsBatch.Results.DeliveryStats == nil {
+		sm.SmsBatch.Results.DeliveryStats = &model.SmsBatchPhaseStats{}
+	}
 
 	// For delivery, we simulate reading packed data
 	// In real implementation, you would store the path in preparation phase
-	packedDataPath := path.Job.Path(sm.Job.JobID, "sms_packed_data")
+	packedDataPath := path.Job.Path(sm.SmsBatch.BatchID, "sms_packed_data")
 	packedData, err := sm.Watcher.Minio.Read(ctx, packedDataPath)
 	if err != nil {
 		return err
@@ -99,132 +104,121 @@ func (sm *StateMachine) DeliveryExecute(ctx context.Context, event *fsm.Event) e
 	}
 
 	// 2. Save delivery results
-	deliveryResultPath := path.Job.Path(sm.Job.JobID, "sms_delivery_results")
+	deliveryResultPath := path.Job.Path(sm.SmsBatch.BatchID, "sms_delivery_results")
 	if err := sm.Watcher.Minio.Write(ctx, deliveryResultPath, deliveryResults); err != nil {
 		return err
 	}
 
-	// Update current phase to delivery
-	msgBatchResults.CurrentPhase = ptr.To("delivery")
+	// Update SMS batch results
+	sm.SmsBatch.Results.CurrentPhase = "delivery"
 
 	// 3. Update delivery statistics
-	msgBatchResults.DeliveryStats = &v1.MessageBatchPhaseStats{
-		Processed: ptr.To(int64(len(packedData))),
-		Success:   ptr.To(int64(len(packedData))),
-		Failed:    ptr.To(int64(0)),
-		StartTime: ptr.To(time.Now().Unix()),
-		EndTime:   ptr.To(time.Now().Unix()),
+	now := time.Now()
+	sm.SmsBatch.Results.DeliveryStats = &model.SmsBatchPhaseStats{
+		Processed: int64(len(packedData)),
+		Success:   int64(len(packedData)),
+		Failed:    int64(0),
+		StartTime: &now,
+		EndTime:   &now,
 	}
 
 	// Update total message counts
 	totalProcessed := int64(0)
-	if msgBatchResults.PreparationStats != nil && msgBatchResults.PreparationStats.Processed != nil {
-		totalProcessed += *msgBatchResults.PreparationStats.Processed
+	if sm.SmsBatch.Results.PreparationStats != nil {
+		totalProcessed += sm.SmsBatch.Results.PreparationStats.Processed
 	}
 	totalProcessed += int64(len(packedData))
-	msgBatchResults.ProcessedMessages = ptr.To(totalProcessed)
-	msgBatchResults.TotalMessages = ptr.To(totalProcessed)
+	sm.SmsBatch.Results.ProcessedMessages = totalProcessed
+	sm.SmsBatch.Results.TotalMessages = totalProcessed
 
-	sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), jobconditionsutil.TrueCondition(event.FSM.Current())))
 	return nil
 }
 
 // PreparationPause handles pausing the preparation phase.
 func (sm *StateMachine) PreparationPause(ctx context.Context, event *fsm.Event) error {
-	log.Infow("Pausing SMS preparation", "job_id", sm.Job.JobID)
+	log.Infow("Pausing SMS preparation", "batch_id", sm.SmsBatch.BatchID)
 
 	// Save current state and progress
-	if sm.Job.Results != nil {
-		msgBatchResults := (*v1.JobResults)(sm.Job.Results).MessageBatch
-		if msgBatchResults != nil {
-			msgBatchResults.CurrentState = ptr.To("paused")
-		}
+	if sm.SmsBatch.Results != nil {
+		sm.SmsBatch.Results.CurrentState = "paused"
 	}
 
-	sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), jobconditionsutil.TrueCondition(event.FSM.Current())))
 	return nil
 }
 
 // DeliveryPause handles pausing the delivery phase.
 func (sm *StateMachine) DeliveryPause(ctx context.Context, event *fsm.Event) error {
-	log.Infow("Pausing SMS delivery", "job_id", sm.Job.JobID)
+	log.Infow("Pausing SMS delivery", "batch_id", sm.SmsBatch.BatchID)
 
 	// Save current state and progress
-	if sm.Job.Results != nil {
-		msgBatchResults := (*v1.JobResults)(sm.Job.Results).MessageBatch
-		if msgBatchResults != nil {
-			msgBatchResults.CurrentState = ptr.To("paused")
-		}
+	if sm.SmsBatch.Results != nil {
+		sm.SmsBatch.Results.CurrentState = "paused"
 	}
 
-	sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), jobconditionsutil.TrueCondition(event.FSM.Current())))
 	return nil
 }
 
 // PreparationResume handles resuming the preparation phase.
 func (sm *StateMachine) PreparationResume(ctx context.Context, event *fsm.Event) error {
-	log.Infow("Resuming SMS preparation", "job_id", sm.Job.JobID)
+	log.Infow("Resuming SMS preparation", "batch_id", sm.SmsBatch.BatchID)
 
 	// Clear paused state
-	if sm.Job.Results != nil {
-		msgBatchResults := (*v1.JobResults)(sm.Job.Results).MessageBatch
-		if msgBatchResults != nil {
-			msgBatchResults.CurrentState = ptr.To("running")
-		}
+	if sm.SmsBatch.Results != nil {
+		sm.SmsBatch.Results.CurrentState = "running"
 	}
 
-	sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), jobconditionsutil.TrueCondition(event.FSM.Current())))
 	return nil
 }
 
 // DeliveryResume handles resuming the delivery phase.
 func (sm *StateMachine) DeliveryResume(ctx context.Context, event *fsm.Event) error {
-	log.Infow("Resuming SMS delivery", "job_id", sm.Job.JobID)
+	log.Infow("Resuming SMS delivery", "batch_id", sm.SmsBatch.BatchID)
 
 	// Clear paused state
-	if sm.Job.Results != nil {
-		msgBatchResults := (*v1.JobResults)(sm.Job.Results).MessageBatch
-		if msgBatchResults != nil {
-			msgBatchResults.CurrentState = ptr.To("running")
-		}
+	if sm.SmsBatch.Results != nil {
+		sm.SmsBatch.Results.CurrentState = "running"
 	}
 
-	sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), jobconditionsutil.TrueCondition(event.FSM.Current())))
 	return nil
 }
 
 // EnterState handles the state transition of the state machine
-// and updates the Job's status and conditions based on the event.
+// and updates the SmsBatch's status and conditions based on the event.
 func (sm *StateMachine) EnterState(ctx context.Context, event *fsm.Event) error {
-	sm.Job.Status = event.FSM.Current()
+	sm.SmsBatch.Status = event.FSM.Current()
 
-	// Record the start time of the job
-	if sm.Job.Status == SmsBatchPreparationReady {
-		sm.Job.StartedAt = time.Now()
+	// Record the start time of the SMS batch
+	if sm.SmsBatch.Status == SmsBatchPreparationReady {
+		sm.SmsBatch.StartedAt = time.Now()
 	}
 
-	// Unified handling logic for Job failure
-	if event.Err != nil || isJobTimeout(sm.Job) {
-		sm.Job.Status = SmsBatchFailed
-		sm.Job.EndedAt = time.Now()
+	// Unified handling logic for SMS batch failure
+	if event.Err != nil || isSmsBatchTimeout(sm.SmsBatch) {
+		sm.SmsBatch.Status = SmsBatchFailed
+		sm.SmsBatch.EndedAt = time.Now()
 
 		var cond *v1.JobCondition
-		if isJobTimeout(sm.Job) {
+		if isSmsBatchTimeout(sm.SmsBatch) {
 			log.Infow("SMS batch task timeout")
 			cond = jobconditionsutil.FalseCondition(event.FSM.Current(), "SMS batch task exceeded timeout seconds")
 		} else {
 			cond = jobconditionsutil.FalseCondition(event.FSM.Current(), event.Err.Error())
 		}
 
-		sm.Job.Conditions = jobconditionsutil.Set(sm.Job.Conditions, cond)
+		sm.SmsBatch.Conditions = (*model.SmsBatchConditions)(jobconditionsutil.Set((*model.JobConditions)(sm.SmsBatch.Conditions), cond))
 	}
 
 	// Record completion time for final states
-	if sm.Job.Status == SmsBatchSucceeded || sm.Job.Status == SmsBatchFailed || sm.Job.Status == SmsBatchAborted {
-		sm.Job.EndedAt = time.Now()
+	if sm.SmsBatch.Status == SmsBatchSucceeded || sm.SmsBatch.Status == SmsBatchFailed || sm.SmsBatch.Status == SmsBatchAborted {
+		sm.SmsBatch.EndedAt = time.Now()
 	}
 
-	if err := sm.Watcher.Store.Job().Update(ctx, sm.Job); err != nil {
+	if err := sm.Watcher.Store.SmsBatch().Update(ctx, sm.SmsBatch); err != nil {
 		return err
 	}
 

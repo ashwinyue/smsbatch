@@ -54,6 +54,55 @@ const (
 // Note: We now use v1.MessageBatchResults and v1.MessageBatchPhaseStats
 // instead of custom structures for better integration with the existing system
 
+// isSmsBatchTimeout checks if the SMS batch has exceeded its allowed execution time.
+func isSmsBatchTimeout(smsBatch *model.SmsBatchM) bool {
+	duration := time.Now().Unix() - smsBatch.StartedAt.Unix()
+	timeout := getSmsBatchTimeout(smsBatch)
+
+	return duration > timeout
+}
+
+// getSmsBatchTimeout returns the timeout value for the SMS batch.
+func getSmsBatchTimeout(smsBatch *model.SmsBatchM) int64 {
+	// Try to get timeout from SMS batch params if available
+	if smsBatch.Params != nil {
+		// Assuming SMS batch params might have a timeout field
+		// This would need to be adjusted based on actual model structure
+		return SmsBatchTimeout
+	}
+	return SmsBatchTimeout
+}
+
+// ShouldSkipOnIdempotency determines whether an SMS batch should skip execution based on idempotency conditions.
+func ShouldSkipOnIdempotency(smsBatch *model.SmsBatchM, condType string) bool {
+	// If idempotent execution is not set, allow execution regardless of conditions.
+	if !isIdempotentExecution(smsBatch) {
+		return false
+	}
+
+	return jobconditionsutil.IsTrue((*model.JobConditions)(smsBatch.Conditions), condType)
+}
+
+// isIdempotentExecution checks if the SMS batch is configured for idempotent execution.
+func isIdempotentExecution(smsBatch *model.SmsBatchM) bool {
+	// This would need to be adjusted based on actual SMS batch params structure
+	// For now, assume all SMS batches are idempotent
+	return true
+}
+
+// SetDefaultSmsBatchParams sets default parameters for the SMS batch if they are not already set.
+func SetDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
+	// Set default timeout if not specified
+	// This would need to be adjusted based on actual SMS batch params structure
+	if smsBatch.Params == nil {
+		// Initialize params if needed
+		// smsBatch.Params = &model.SmsBatchParams{}
+	}
+
+	// Set other default parameters as needed
+}
+
+// Legacy functions for backward compatibility
 // isJobTimeout checks if the job has exceeded its allowed execution time.
 func isJobTimeout(job *model.JobM) bool {
 	duration := time.Now().Unix() - job.StartedAt.Unix()
@@ -71,35 +120,6 @@ func getJobTimeout(job *model.JobM) int64 {
 		return SmsBatchTimeout
 	}
 	return SmsBatchTimeout
-}
-
-// ShouldSkipOnIdempotency determines whether a job should skip execution based on idempotency conditions.
-func ShouldSkipOnIdempotency(job *model.JobM, condType string) bool {
-	// If idempotent execution is not set, allow execution regardless of conditions.
-	if !isIdempotentExecution(job) {
-		return false
-	}
-
-	return jobconditionsutil.IsTrue(job.Conditions, condType)
-}
-
-// isIdempotentExecution checks if the job is configured for idempotent execution.
-func isIdempotentExecution(job *model.JobM) bool {
-	// This would need to be adjusted based on actual job params structure
-	// For now, assume all jobs are idempotent
-	return true
-}
-
-// SetDefaultJobParams sets default parameters for the job if they are not already set.
-func SetDefaultJobParams(job *model.JobM) {
-	// Set default timeout if not specified
-	// This would need to be adjusted based on actual job params structure
-	if job.Params == nil {
-		// Initialize params if needed
-		// job.Params = &model.JobParams{}
-	}
-
-	// Set other default parameters as needed
 }
 
 // GetCurrentStep returns the current step based on the job status.

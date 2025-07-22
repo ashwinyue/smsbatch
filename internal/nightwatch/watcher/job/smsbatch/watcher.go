@@ -47,26 +47,26 @@ func (w *Watcher) Run() {
 		SmsBatchDeliveryPaused,
 	}
 
-	_, jobs, err := w.Store.Job().List(context.Background(), where.F(
+	_, smsBatches, err := w.Store.SmsBatch().List(context.Background(), where.F(
 		"scope", SmsBatchJobScope,
 		"watcher", SmsBatchWatcher,
-		"status", runablePhase,
+		"current_state", runablePhase,
 		"suspend", JobNonSuspended,
 	))
 	if err != nil {
-		log.Errorw("Failed to get runnable SMS batch jobs", "error", err)
+		log.Errorw("Failed to get runnable SMS batches", "error", err)
 		return
 	}
 
 	wp := workerpool.New(int(w.MaxWorkers))
-	for _, job := range jobs {
+	for _, smsBatch := range smsBatches {
 		ctx := context.Background()
-		log.Infow("Start to process SMS batch", "job_id", job.JobID, "status", job.Status)
+		log.Infow("Start to process SMS batch", "batch_id", smsBatch.BatchID, "current_state", smsBatch.CurrentState)
 
 		wp.Submit(func() {
-			sm := NewStateMachine(job.Status, w, job)
-			if err := sm.FSM.Event(ctx, job.Status); err != nil {
-				log.Errorw("Failed to process SMS batch job", "job_id", job.JobID, "error", err)
+			sm := NewStateMachine(smsBatch.CurrentState, w, smsBatch)
+			if err := sm.FSM.Event(ctx, smsBatch.CurrentState); err != nil {
+				log.Errorw("Failed to process SMS batch", "batch_id", smsBatch.BatchID, "error", err)
 				return
 			}
 		})

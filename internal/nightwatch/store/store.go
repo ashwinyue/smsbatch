@@ -38,6 +38,7 @@ type IStore interface {
 
 	CronJob() CronJobStore
 	Job() JobStore
+	SmsBatch() SmsBatchStore
 	MessageBatchJob() MessageBatchJobStore
 	Post() PostStore
 	// ConcretePost ConcretePosts 是一个示例 store 实现，用来演示在 Go 中如何直接与 DB 交互.
@@ -119,6 +120,11 @@ func (store *datastore) CronJob() CronJobStore {
 // Job 返回一个实现了 JobStore 接口的实例.
 func (store *datastore) Job() JobStore {
 	return newJobStore(store)
+}
+
+// SmsBatch 返回一个实现了 SmsBatchStore 接口的实例.
+func (store *datastore) SmsBatch() SmsBatchStore {
+	return newSmsBatchStore(store)
 }
 
 // Post 返回一个实现了 PostStore 接口的实例.
