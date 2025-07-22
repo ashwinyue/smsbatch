@@ -8,33 +8,29 @@ import (
 
 	"github.com/ashwinyue/dcp/internal/nightwatch"
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	genericoptions "github.com/onexstack/onexstack/pkg/options"
 )
 
 func main() {
-	// 创建配置
+	// 创建MongoDB配置
 	cfg := &nightwatch.Config{
 		MongoOptions: &genericoptions.MongoOptions{
 			URL:      "mongodb://localhost:27017",
 			Database: "dcp_test",
 			Timeout:  10 * time.Second,
 		},
-		MySQLOptions: &genericoptions.MySQLOptions{
-			Addr:     "127.0.0.1:3306",
-			Username: "root",
-			Password: "password",
-			Database: "dcp",
-		},
 	}
 
-	// 创建带有MongoDB支持的store
-	storeInstance, err := nightwatch.ProvideStoreWithMongo(cfg)
+	// 直接创建MongoDB管理器
+	mongoManager, err := cfg.NewMongoManager()
 	if err != nil {
-		log.Fatalf("创建store失败: %v", err)
+		log.Fatalf("创建MongoDB管理器失败: %v", err)
 	}
+	defer mongoManager.Close()
 
-	// 获取SmsBatch store实例
-	smsBatchStore := storeInstance.SmsBatch()
+	// 直接创建SmsBatch MongoDB store
+	smsBatchStore := store.NewSmsBatchMongoStore(mongoManager)
 
 	// 创建测试数据
 	testBatch := &model.SmsBatchM{
@@ -60,8 +56,9 @@ func main() {
 
 	// 测试查询
 	fmt.Println("正在测试从MongoDB查询SMS批次...")
-	// 注意：这里需要实现适当的where条件
-	// 由于where.Where的复杂性，这里只是演示结构
+	// 注意：这里需要使用where条件，但为了简化测试，我们跳过查询测试
+	// 在实际使用中，需要实现适当的where条件
+	fmt.Println("查询测试跳过（需要实现where条件）")
 
 	fmt.Println("MongoDB集成测试完成！")
 	fmt.Println("如果看到上述成功消息，说明smsbatch已成功从MySQL迁移到MongoDB")

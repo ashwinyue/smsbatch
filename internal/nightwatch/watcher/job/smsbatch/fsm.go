@@ -53,19 +53,31 @@ func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM
 			// enter_state 先于 enter_xxx 执行
 			"enter_state": fsmutil.WrapEvent(sm.EnterState),
 
+			// Initial state callback
+			"enter_" + SmsBatchInitial: fsmutil.WrapEvent(sm.InitialExecute),
+
 			// Preparation phase callbacks
+			"enter_" + SmsBatchPreparationReady:     fsmutil.WrapEvent(sm.PreparationReady),
+			"enter_" + SmsBatchPreparationRunning:   fsmutil.WrapEvent(sm.PreparationStart),
 			"enter_" + SmsBatchPreparationCompleted: fsmutil.WrapEvent(sm.PreparationExecute),
 
 			// Delivery phase callbacks
+			"enter_" + SmsBatchDeliveryReady:     fsmutil.WrapEvent(sm.DeliveryReady),
+			"enter_" + SmsBatchDeliveryRunning:   fsmutil.WrapEvent(sm.DeliveryStart),
 			"enter_" + SmsBatchDeliveryCompleted: fsmutil.WrapEvent(sm.DeliveryExecute),
 
 			// Pause callbacks
 			"enter_" + SmsBatchPreparationPaused: fsmutil.WrapEvent(sm.PreparationPause),
 			"enter_" + SmsBatchDeliveryPaused:    fsmutil.WrapEvent(sm.DeliveryPause),
 
-			// Resume callbacks
-			"enter_" + SmsBatchPreparationRunning: fsmutil.WrapEvent(sm.PreparationResume),
-			"enter_" + SmsBatchDeliveryRunning:    fsmutil.WrapEvent(sm.DeliveryResume),
+			// Resume callbacks - 注意：这里应该使用不同的回调函数
+			"after_" + SmsBatchResumePreparation: fsmutil.WrapEvent(sm.PreparationResume),
+			"after_" + SmsBatchResumeDelivery:    fsmutil.WrapEvent(sm.DeliveryResume),
+
+			// Final state callbacks
+			"enter_" + SmsBatchSucceeded: fsmutil.WrapEvent(sm.BatchSucceeded),
+			"enter_" + SmsBatchFailed:    fsmutil.WrapEvent(sm.BatchFailed),
+			"enter_" + SmsBatchAborted:   fsmutil.WrapEvent(sm.BatchAborted),
 		},
 	)
 

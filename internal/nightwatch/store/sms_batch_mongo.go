@@ -46,6 +46,13 @@ func newSmsBatchMongoStore(mongoManager MongoManager) *smsBatchMongoStore {
 	}
 }
 
+// NewSmsBatchMongoStore 创建一个 smsBatchMongoStore 实例（导出版本）.
+func NewSmsBatchMongoStore(mongoManager MongoManager) SmsBatchStore {
+	return &smsBatchMongoStore{
+		mongoManager: mongoManager,
+	}
+}
+
 // Create 插入一条 sms_batch 记录到 MongoDB.
 func (s *smsBatchMongoStore) Create(ctx context.Context, smsBatch *model.SmsBatchM) error {
 	// 设置创建时间

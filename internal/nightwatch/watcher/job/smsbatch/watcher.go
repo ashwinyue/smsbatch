@@ -8,6 +8,7 @@ import (
 	"github.com/onexstack/onexstack/pkg/watch/registry"
 	"go.uber.org/ratelimit"
 
+	"github.com/ashwinyue/dcp/internal/nightwatch/mqs"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher"
 	"github.com/ashwinyue/dcp/internal/pkg/client/minio"
@@ -32,6 +33,8 @@ type Watcher struct {
 	MaxWorkers int64
 	// Rate limiters for operations.
 	Limiter Limiter
+	// Event publisher for batch events.
+	EventPublisher *mqs.BatchEventPublisher
 }
 
 // Run executes the watcher logic to process jobs.
