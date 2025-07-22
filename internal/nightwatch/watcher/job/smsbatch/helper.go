@@ -80,7 +80,62 @@ func ShouldSkipOnIdempotency(smsBatch *model.SmsBatchM, condType string) bool {
 		return false
 	}
 
-	return jobconditionsutil.IsTrue((*model.JobConditions)(smsBatch.Conditions), condType)
+	// Check if the condition has already been satisfied
+	if smsBatch.Conditions == nil {
+		return false
+	}
+
+	// Convert conditions to map for easier checking
+	conditions := (*model.JobConditions)(smsBatch.Conditions)
+	if conditions == nil {
+		return false
+	}
+
+	// Check specific condition types
+	switch condType {
+	case "preparation_execute":
+		// Skip if preparation has already been executed successfully
+		if jobconditionsutil.IsTrue(conditions, "preparation_execute") {
+			return true
+		}
+	case "delivery_execute":
+		// Skip if delivery has already been executed successfully
+		if jobconditionsutil.IsTrue(conditions, "delivery_execute") {
+			return true
+		}
+	case "batch_completed":
+		// Skip if batch has already been completed
+		if jobconditionsutil.IsTrue(conditions, "batch_completed") {
+			return true
+		}
+	case "batch_paused":
+		// Skip if batch has already been paused
+		if jobconditionsutil.IsTrue(conditions, "batch_paused") {
+			return true
+		}
+	case "batch_resumed":
+		// Skip if batch has already been resumed
+		if jobconditionsutil.IsTrue(conditions, "batch_resumed") {
+			return true
+		}
+	case "batch_retried":
+		// Skip if batch has already been retried
+		if jobconditionsutil.IsTrue(conditions, "batch_retried") {
+			return true
+		}
+	default:
+		// For unknown condition types, check if the condition exists and is true
+		if jobconditionsutil.IsTrue(conditions, condType) {
+			return true
+		}
+	}
+
+	// Additional checks based on batch status and current state
+	if smsBatch.Status == "completed" && (condType == "preparation_execute" || condType == "delivery_execute") {
+		return true
+	}
+
+	return false
 }
 
 // isIdempotentExecution checks if the SMS batch is configured for idempotent execution.
@@ -92,14 +147,56 @@ func isIdempotentExecution(smsBatch *model.SmsBatchM) bool {
 
 // SetDefaultSmsBatchParams sets default parameters for the SMS batch if they are not already set.
 func SetDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
-	// Set default timeout if not specified
-	// This would need to be adjusted based on actual SMS batch params structure
+	// Initialize params if nil
 	if smsBatch.Params == nil {
 		// Initialize params if needed
 		// smsBatch.Params = &model.SmsBatchParams{}
 	}
 
-	// Set other default parameters as needed
+	// Set default batch size (similar to Java's pack size)
+	// if smsBatch.Params.BatchSize == 0 {
+	//     smsBatch.Params.BatchSize = 1000 // Default batch size
+	// }
+
+	// Set default partition count
+	// if smsBatch.Params.PartitionCount == 0 {
+	//     smsBatch.Params.PartitionCount = 4 // Default partition count
+	// }
+
+	// Set default job timeout (in seconds)
+	// if smsBatch.Params.JobTimeout == 0 {
+	//     smsBatch.Params.JobTimeout = SmsBatchTimeout // Use constant
+	// }
+
+	// Set default max retries
+	// if smsBatch.Params.MaxRetries == 0 {
+	//     smsBatch.Params.MaxRetries = 3 // Default max retries
+	// }
+
+	// Set default idempotent execution
+	// if !smsBatch.Params.IdempotentExecution {
+	//     smsBatch.Params.IdempotentExecution = true // Enable idempotent execution by default
+	// }
+
+	// Initialize preparation config if nil
+	// if smsBatch.Params.PreparationConfig == nil {
+	//     smsBatch.Params.PreparationConfig = map[string]interface{}{
+	//         "pack_size":           1000,
+	//         "max_concurrent_packs": SmsBatchMaxWorkers,
+	//         "enable_validation":    true,
+	//         "storage_timeout":      300, // 5 minutes
+	//     }
+	// }
+
+	// Initialize delivery config if nil
+	// if smsBatch.Params.DeliveryConfig == nil {
+	//     smsBatch.Params.DeliveryConfig = map[string]interface{}{
+	//         "max_concurrent_partitions": 4,
+	//         "delivery_timeout":          600, // 10 minutes
+	//         "retry_delay_seconds":       30,
+	//         "enable_delivery_tracking":  true,
+	//     }
+	// }
 }
 
 // Legacy functions for backward compatibility
