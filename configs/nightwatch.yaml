@@ -102,6 +102,101 @@ watch:
     # 工作线程空闲超时时间
     idle-timeout: 60s
 
+# Redis 配置
+redis:
+  # Redis 服务器地址
+  addr: 127.0.0.1:6379
+  # Redis 用户名
+  username: ""
+  # Redis 密码
+  password: ""
+  # Redis 数据库编号
+  database: 1
+  # 最大重试次数
+  max-retries: 3
+  # 最小空闲连接数
+  min-idle-conns: 0
+  # 连接超时时间
+  dial-timeout: 5s
+  # 读取超时时间
+  read-timeout: 3s
+  # 写入超时时间
+  write-timeout: 3s
+  # 连接池超时时间
+  pool-timeout: 4s
+  # 连接池大小
+  pool-size: 10
+  # 是否启用链路追踪
+  enable-trace: false
+
+# Kafka 配置
+kafka:
+  # Kafka 集群地址
+  brokers: ["127.0.0.1:9092"]
+  # 默认主题
+  topic: "dcp-nightwatch"
+  # 客户端ID
+  client-id: "dcp-nightwatch"
+  # 连接超时时间
+  timeout: 3s
+  # SASL 认证机制 (可选值: plain, scram-sha-256, scram-sha-512)
+  mechanism: ""
+  # SASL 用户名
+  username: ""
+  # SASL 密码
+  password: ""
+  # 压缩算法 (可选值: none, gzip, snappy, lz4, zstd)
+  algorithm: ""
+  # 是否启用压缩
+  compressed: false
+  # TLS 配置
+  tls:
+    use-tls: false
+    cert: ""
+    key: ""
+    ca: ""
+    insecure-skip-verify: false
+  # 生产者配置
+  writer:
+    # 最大重试次数
+    max-attempts: 10
+    # 需要的确认数 (-1: 等待所有副本确认, 0: 不等待确认, 1: 等待leader确认)
+    required-acks: 1
+    # 是否异步发送
+    async: true
+    # 批次大小
+    batch-size: 100
+    # 批次超时时间
+    batch-timeout: 1s
+    # 批次字节数
+    batch-bytes: 1048576
+  # 消费者配置
+  reader:
+    # 消费者组ID
+    group-id: "dcp-nightwatch-group"
+    # 分区号 (与group-id互斥)
+    partition: 0
+    # 队列容量
+    queue-capacity: 100
+    # 最小字节数
+    min-bytes: 1
+    # 最大字节数
+    max-bytes: 1048576
+    # 最大等待时间
+    max-wait: 10s
+    # 读取批次超时时间
+    read-batch-timeout: 10s
+    # 心跳间隔
+    heartbeat-interval: 3s
+    # 提交间隔
+    commit-interval: 0s
+    # 重平衡超时时间
+    rebalance-timeout: 30s
+    # 起始偏移量 (-1: 最新, -2: 最早)
+    start-offset: -1
+    # 最大重试次数
+    max-attempts: 3
+
 # 日志配置
 log:
   # 是否开启 caller，如果开启会在日志中显示调用日志所在的文件和行号

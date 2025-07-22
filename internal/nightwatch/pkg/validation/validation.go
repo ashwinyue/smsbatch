@@ -75,6 +75,16 @@ func (v *Validator) Validate(ctx context.Context, req any) error {
 		return v.ValidateGetCronJobRequest(ctx, rq)
 	case *apiv1.ListCronJobRequest:
 		return v.ValidateListCronJobRequest(ctx, rq)
+	case *apiv1.CreateSmsBatchRequest:
+		return v.ValidateCreateSmsBatchRequest(ctx, rq)
+	case *apiv1.UpdateSmsBatchRequest:
+		return v.ValidateUpdateSmsBatchRequest(ctx, rq)
+	case *apiv1.DeleteSmsBatchRequest:
+		return v.ValidateDeleteSmsBatchRequest(ctx, rq)
+	case *apiv1.GetSmsBatchRequest:
+		return v.ValidateGetSmsBatchRequest(ctx, rq)
+	case *apiv1.ListSmsBatchRequest:
+		return v.ValidateListSmsBatchRequest(ctx, rq)
 	case *apiv1.CreateJobRequest:
 		return v.ValidateCreateJobRequest(ctx, rq)
 	case *apiv1.UpdateJobRequest:

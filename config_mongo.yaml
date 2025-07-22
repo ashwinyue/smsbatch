@@ -1,0 +1,67 @@
+# MongoDB配置示例
+server:
+  mode: gin
+  enable-memory-store: false
+  enable-watcher: false
+
+http:
+  addr: 0.0.0.0:8080
+  timeout: 30s
+
+grpc:
+  addr: 0.0.0.0:9090
+  timeout: 30s
+
+# MySQL配置（仍需要用于其他模块）
+mysql:
+  addr: 127.0.0.1:3306
+  username: root
+  password: password
+  database: dcp
+  max-idle-connections: 10
+  max-open-connections: 100
+  max-connection-life-time: 10s
+  log-level: 4
+
+# MongoDB配置
+mongo:
+  url: mongodb://localhost:27017
+  database: dcp_mongo
+  username: ""
+  password: ""
+  timeout: 10s
+
+# Redis配置
+redis:
+  addr: 127.0.0.1:6379
+  username: ""
+  password: ""
+  database: 0
+  dial-timeout: 5s
+  read-timeout: 3s
+  write-timeout: 3s
+  pool-size: 10
+
+# Kafka配置
+kafka:
+  brokers:
+    - localhost:9092
+  topic: dcp-messages
+  group-id: dcp-consumer-group
+  sasl:
+    enable: false
+    mechanism: ""
+    username: ""
+    password: ""
+
+# 日志配置
+log:
+  level: info
+  format: console
+  enable-color: true
+  disable-caller: false
+  disable-stacktrace: false
+  output-paths:
+    - stdout
+  error-output-paths:
+    - stderr

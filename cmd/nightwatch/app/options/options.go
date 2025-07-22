@@ -48,6 +48,10 @@ type ServerOptions struct {
 	MySQLOptions *genericoptions.MySQLOptions `json:"mysql" mapstructure:"mysql"`
 	// MongoOptions 包含 MongoDB 配置选项.
 	MongoOptions *genericoptions.MongoOptions `json:"mongo" mapstructure:"mongo"`
+	// RedisOptions 包含 Redis 配置选项.
+	RedisOptions *genericoptions.RedisOptions `json:"redis" mapstructure:"redis"`
+	// KafkaOptions 包含 Kafka 配置选项.
+	KafkaOptions *genericoptions.KafkaOptions `json:"kafka" mapstructure:"kafka"`
 	// WatchOptions 包含 Watch 配置选项.
 	WatchOptions *watch.Options `json:"watch" mapstructure:"watch"`
 }
@@ -64,6 +68,8 @@ func NewServerOptions() *ServerOptions {
 		GRPCOptions:           genericoptions.NewGRPCOptions(),
 		MySQLOptions:          genericoptions.NewMySQLOptions(),
 		MongoOptions:          genericoptions.NewMongoOptions(),
+		RedisOptions:          genericoptions.NewRedisOptions(),
+		KafkaOptions:          genericoptions.NewKafkaOptions(),
 		WatchOptions:          watch.NewOptions(),
 	}
 	opts.HTTPOptions.Addr = ":5555"
@@ -85,6 +91,8 @@ func (o *ServerOptions) AddFlags(fs *pflag.FlagSet) {
 	o.GRPCOptions.AddFlags(fs)
 	o.MySQLOptions.AddFlags(fs)
 	o.MongoOptions.AddFlags(fs)
+	o.RedisOptions.AddFlags(fs)
+	o.KafkaOptions.AddFlags(fs)
 	o.WatchOptions.AddFlags(fs)
 }
 
@@ -109,6 +117,8 @@ func (o *ServerOptions) Validate() error {
 	errs = append(errs, o.HTTPOptions.Validate()...)
 	errs = append(errs, o.MySQLOptions.Validate()...)
 	errs = append(errs, o.MongoOptions.Validate()...)
+	errs = append(errs, o.RedisOptions.Validate()...)
+	errs = append(errs, o.KafkaOptions.Validate()...)
 	if o.WatchOptions != nil {
 		errs = append(errs, o.WatchOptions.Validate()...)
 	}
@@ -134,6 +144,8 @@ func (o *ServerOptions) Config() (*nightwatch.Config, error) {
 		GRPCOptions:           o.GRPCOptions,
 		MySQLOptions:          o.MySQLOptions,
 		MongoOptions:          o.MongoOptions,
+		RedisOptions:          o.RedisOptions,
+		KafkaOptions:          o.KafkaOptions,
 		WatchOptions:          o.WatchOptions,
 	}, nil
 }

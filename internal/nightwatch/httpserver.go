@@ -76,6 +76,16 @@ func (c *ServerConfig) InstallRESTAPI(engine *gin.Engine) {
 			cronjobv1.GET("", handler.ListCronJob)             // 查询CronJob列表
 		}
 
+		// SmsBatch相关路由
+		smsbatchv1 := v1.Group("/smsbatches")
+		{
+			smsbatchv1.POST("", handler.CreateSmsBatch)        // 创建SmsBatch
+			smsbatchv1.PUT(":batchID", handler.UpdateSmsBatch) // 更新SmsBatch
+			smsbatchv1.DELETE("", handler.DeleteSmsBatch)      // 删除SmsBatch
+			smsbatchv1.GET(":batchID", handler.GetSmsBatch)    // 查询SmsBatch详情
+			smsbatchv1.GET("", handler.ListSmsBatch)           // 查询SmsBatch列表
+		}
+
 	}
 }
 

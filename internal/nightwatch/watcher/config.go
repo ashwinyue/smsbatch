@@ -4,7 +4,6 @@ package watcher
 import (
 	"gorm.io/gorm"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/cache"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/client/minio"
 )
@@ -16,8 +15,6 @@ type AggregateConfig struct {
 	DB *gorm.DB
 	// MinIO client for object storage
 	Minio minio.IMinio
-	// Redis cache manager for high-performance caching
-	Cache *cache.CacheManager
 	// Then maximum concurrency event of user watcher.
 	UserWatcherMaxWorkers int64
 }

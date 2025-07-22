@@ -39,7 +39,6 @@ type IStore interface {
 	CronJob() CronJobStore
 	Job() JobStore
 	SmsBatch() SmsBatchStore
-	MessageBatchJob() MessageBatchJobStore
 	Post() PostStore
 	// ConcretePost ConcretePosts 是一个示例 store 实现，用来演示在 Go 中如何直接与 DB 交互.
 	ConcretePost() ConcretePostStore
@@ -48,9 +47,18 @@ type IStore interface {
 // transactionKey 用于在 context.Context 中存储事务上下文的键.
 type transactionKey struct{}
 
+// MongoManager 接口定义MongoDB管理器的基本方法
+type MongoManager interface {
+	GetCollection(name string) *mongo.Collection
+	Close() error
+}
+
 // datastore 是 IStore 的具体实现.
 type datastore struct {
 	core *gorm.DB
+
+	// MongoDB管理器
+	mongoManager MongoManager
 
 	// MongoDB集合
 	documentCollection *mongo.Collection
@@ -73,7 +81,20 @@ func NewStore(db *gorm.DB) *datastore {
 }
 
 // NewStoreWithMongo 创建一个带有MongoDB支持的IStore类型实例.
-func NewStoreWithMongo(db *gorm.DB, documentCollection *mongo.Collection) *datastore {
+func NewStoreWithMongo(db *gorm.DB, mongoManager MongoManager) *datastore {
+	// 确保 S 只被初始化一次
+	once.Do(func() {
+		S = &datastore{
+			core:         db,
+			mongoManager: mongoManager,
+		}
+	})
+
+	return S
+}
+
+// NewStoreWithMongoCollection 创建一个带有MongoDB集合支持的IStore类型实例.
+func NewStoreWithMongoCollection(db *gorm.DB, documentCollection *mongo.Collection) *datastore {
 	// 确保 S 只被初始化一次
 	once.Do(func() {
 		S = &datastore{
@@ -124,6 +145,11 @@ func (store *datastore) Job() JobStore {
 
 // SmsBatch 返回一个实现了 SmsBatchStore 接口的实例.
 func (store *datastore) SmsBatch() SmsBatchStore {
+	// 如果有MongoDB管理器，使用MongoDB实现
+	if store.mongoManager != nil {
+		return newSmsBatchMongoStore(store.mongoManager)
+	}
+	// 否则使用MySQL实现
 	return newSmsBatchStore(store)
 }
 
@@ -135,14 +161,4 @@ func (store *datastore) Post() PostStore {
 // ConcretePost 返回一个实现了 ConcretePostStore 接口的实例.
 func (store *datastore) ConcretePost() ConcretePostStore {
 	return newConcretePostStore(store)
-}
-
-// MessageBatchJob 返回一个实现了 MessageBatchJobStore 接口的实例.
-func (store *datastore) MessageBatchJob() MessageBatchJobStore {
-	return newMessageBatchJobStore(store)
-}
-
-// Document 返回一个实现了 DocumentStore 接口的实例.
-func (store *datastore) Document() DocumentStore {
-	return newDocumentStore(store.documentCollection)
 }

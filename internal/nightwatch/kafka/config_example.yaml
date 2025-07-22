@@ -1,0 +1,85 @@
+# Kafka Configuration Example for Nightwatch Integration
+# This file demonstrates how to configure Kafka options based on monster project patterns
+
+kafka:
+  # Basic Kafka connection settings
+  brokers:
+    - "localhost:9092"
+    - "kafka-broker-2:9092"
+    - "kafka-broker-3:9092"
+  
+  # Topic configuration
+  topic: "nightwatch-sms-messages"
+  client_id: "nightwatch-client"
+  
+  # TLS configuration (optional)
+  tls:
+    enabled: false
+    ca_cert: "/path/to/ca.crt"
+    cert: "/path/to/client.crt"
+    key: "/path/to/client.key"
+    insecure_skip_verify: false
+  
+  # SASL authentication (optional)
+  sasl:
+    enabled: false
+    mechanism: "PLAIN"  # PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
+    username: "kafka-user"
+    password: "kafka-password"
+    algorithm: "sha256"  # For SCRAM mechanisms
+  
+  # Producer settings (based on monster WriterOptions)
+  producer:
+    required_acks: 1
+    max_attempts: 10
+    async: true
+    batch_size: 100
+    batch_timeout: "1s"
+    batch_bytes: 1048576  # 1MB
+    compression: "snappy"  # none, gzip, snappy, lz4, zstd
+  
+  # Consumer settings (based on monster ReaderOptions)
+  consumer:
+    group_id: "nightwatch-consumer-group"
+    queue_capacity: 100
+    min_bytes: 1
+    max_bytes: 1048576  # 1MB
+    max_wait: "10s"
+    read_batch_timeout: "10s"
+    heartbeat_interval: "3s"
+    commit_interval: "0s"  # 0 means synchronous commits
+    rebalance_timeout: "30s"
+    start_offset: "first"  # first, last
+    max_attempts: 3
+    processors: 4  # Number of message processors
+    consumers: 4   # Number of consumer goroutines
+    force_commit: true
+
+# SMS message processing configuration
+sms:
+  # Template message settings
+  template:
+    default_providers:
+      - "ALIYUN"
+      - "TENCENT"
+    timeout: "30s"
+    retry_attempts: 3
+  
+  # Uplink message settings
+  uplink:
+    interaction_timeout: "10s"
+    database_timeout: "5s"
+
+# Logging configuration
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json, text
+  output:
+    - "stdout"
+    - "/var/log/nightwatch/kafka.log"
+
+# Monitoring and metrics
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: "30s"

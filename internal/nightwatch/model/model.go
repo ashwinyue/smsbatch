@@ -9,14 +9,14 @@ import (
 )
 
 var (
-	ErrCronJobStatusInvalidType        = errors.New("invalid type for CronJobStatus")
-	ErrJobMInvalidType                 = errors.New("invalid type for JobM")
-	ErrJobParamsInvalidType            = errors.New("invalid type for JobParams")
-	ErrJobResultsInvalidType           = errors.New("invalid type for JobResults")
-	ErrJobConditionsInvalidType        = errors.New("invalid type for JobConditions")
-	ErrMessageBatchJobMInvalidType     = errors.New("invalid type for MessageBatchJobM")
-	ErrMessageBatchJobParamsInvalidType = errors.New("invalid type for MessageBatchJobParams")
-	ErrMessageBatchJobResultsInvalidType = errors.New("invalid type for MessageBatchJobResults")
+	ErrCronJobStatusInvalidType             = errors.New("invalid type for CronJobStatus")
+	ErrJobMInvalidType                      = errors.New("invalid type for JobM")
+	ErrJobParamsInvalidType                 = errors.New("invalid type for JobParams")
+	ErrJobResultsInvalidType                = errors.New("invalid type for JobResults")
+	ErrJobConditionsInvalidType             = errors.New("invalid type for JobConditions")
+	ErrMessageBatchJobMInvalidType          = errors.New("invalid type for MessageBatchJobM")
+	ErrMessageBatchJobParamsInvalidType     = errors.New("invalid type for MessageBatchJobParams")
+	ErrMessageBatchJobResultsInvalidType    = errors.New("invalid type for MessageBatchJobResults")
 	ErrMessageBatchJobConditionsInvalidType = errors.New("invalid type for MessageBatchJobConditions")
 )
 
@@ -200,6 +200,9 @@ func (conds *MessageBatchJobConditions) Scan(value interface{}) error {
 func (conds *MessageBatchJobConditions) Value() (driver.Value, error) {
 	return json.Marshal(conds)
 }
+
+// MessageBatchJobM represents the model for message batch job
+type MessageBatchJobM v1.MessageBatchJob
 
 // Scan implements the sql Scanner interface
 func (job *MessageBatchJobM) Scan(value interface{}) error {

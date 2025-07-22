@@ -16,11 +16,12 @@ import (
 
 	genericoptions "github.com/onexstack/onexstack/pkg/options"
 	"github.com/onexstack/onexstack/pkg/watch"
+	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/biz"
-	"github.com/ashwinyue/dcp/internal/nightwatch/cache"
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/validation"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
@@ -72,11 +73,14 @@ type Config struct {
 //
 // HTTP 反向代理服务器依赖 gRPC 服务器，所以在开启 HTTP 反向代理服务器时，会先启动 gRPC 服务器.
 type UnionServer struct {
-	srv    dcpserver.Server
-	watch  *watch.Watch
-	db     *gorm.DB
-	mongo  *MongoManager
-	config *Config
+	srv         dcpserver.Server
+	watch       *watch.Watch
+	db          *gorm.DB
+	mongo       *MongoManager
+	redisClient *redis.Client
+	kafkaWriter *kafka.Writer
+	kafkaReader *kafka.Reader
+	config      *Config
 }
 
 // ServerConfig 包含服务器的核心依赖和配置.
@@ -108,22 +112,23 @@ func (cfg *Config) NewUnionServer() (*UnionServer, error) {
 		return nil, fmt.Errorf("创建MongoDB索引失败: %w", err)
 	}
 
-	// 创建Redis缓存管理器 (如果配置了Redis选项)
-	var cacheManager *cache.CacheManager
-	if cfg.RedisOptions != nil {
-		cacheOpts := &cache.CacheOptions{
-			Addr:     cfg.RedisOptions.Addr,
-			Password: cfg.RedisOptions.Password,
-			DB:       cfg.RedisOptions.Database,
-			Prefix:   "nightwatch:",
-		}
-		cacheManager, err = cache.NewCacheManager(cacheOpts, dcplog.New(nil))
-		if err != nil {
-			return nil, fmt.Errorf("创建Redis缓存管理器失败: %w", err)
-		}
+	// 创建Redis客户端
+	redisClient, err := cfg.NewRedisClient()
+	if err != nil {
+		return nil, fmt.Errorf("初始化Redis失败: %w", err)
 	}
 
+	// 创建Kafka Writer
+	kafkaWriter, err := cfg.NewKafkaWriter()
+	if err != nil {
+		return nil, fmt.Errorf("初始化Kafka Writer失败: %w", err)
+	}
 
+	// 创建Kafka Reader
+	kafkaReader, err := cfg.NewKafkaReader()
+	if err != nil {
+		return nil, fmt.Errorf("初始化Kafka Reader失败: %w", err)
+	}
 
 	// 创建服务配置，这些配置可用来创建服务器
 	srv, err := InitializeWebServer(cfg)
@@ -134,7 +139,7 @@ func (cfg *Config) NewUnionServer() (*UnionServer, error) {
 	var watchIns *watch.Watch
 	if cfg.EnableWatcher {
 		// 创建watcher配置，传入已初始化的组件
-		watcherConfig, err := cfg.CreateWatcherConfig(db, mongoManager, cacheManager)
+		watcherConfig, err := cfg.CreateWatcherConfig(db, mongoManager)
 		if err != nil {
 			return nil, err
 		}
@@ -152,11 +157,14 @@ func (cfg *Config) NewUnionServer() (*UnionServer, error) {
 	}
 
 	return &UnionServer{
-		srv:    srv,
-		watch:  watchIns,
-		db:     db,
-		mongo:  mongoManager,
-		config: cfg,
+		srv:         srv,
+		watch:       watchIns,
+		db:          db,
+		mongo:       mongoManager,
+		redisClient: redisClient,
+		kafkaWriter: kafkaWriter,
+		kafkaReader: kafkaReader,
+		config:      cfg,
 	}, nil
 }
 
@@ -186,6 +194,63 @@ func ProvideDB(cfg *Config) (*gorm.DB, error) {
 	return cfg.NewDB()
 }
 
+// NewRedisClient 创建Redis客户端
+func (cfg *Config) NewRedisClient() (*redis.Client, error) {
+	if cfg.RedisOptions == nil {
+		return nil, fmt.Errorf("Redis配置为空")
+	}
+	return cfg.RedisOptions.NewClient()
+}
+
+// NewKafkaWriter 创建Kafka生产者
+func (cfg *Config) NewKafkaWriter() (*kafka.Writer, error) {
+	if cfg.KafkaOptions == nil {
+		return nil, fmt.Errorf("Kafka配置为空")
+	}
+
+	// 创建Kafka Writer配置
+	writer := &kafka.Writer{
+		Addr:         kafka.TCP(cfg.KafkaOptions.Brokers...),
+		Topic:        cfg.KafkaOptions.Topic,
+		Balancer:     &kafka.LeastBytes{},
+		RequiredAcks: kafka.RequiredAcks(cfg.KafkaOptions.WriterOptions.RequiredAcks),
+		MaxAttempts:  cfg.KafkaOptions.WriterOptions.MaxAttempts,
+		Async:        cfg.KafkaOptions.WriterOptions.Async,
+		BatchSize:    cfg.KafkaOptions.WriterOptions.BatchSize,
+		BatchTimeout: cfg.KafkaOptions.WriterOptions.BatchTimeout,
+		BatchBytes:   int64(cfg.KafkaOptions.WriterOptions.BatchBytes),
+	}
+
+	return writer, nil
+}
+
+// NewKafkaReader 创建Kafka消费者
+func (cfg *Config) NewKafkaReader() (*kafka.Reader, error) {
+	if cfg.KafkaOptions == nil {
+		return nil, fmt.Errorf("Kafka配置为空")
+	}
+
+	// 创建Kafka Reader配置
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:           cfg.KafkaOptions.Brokers,
+		Topic:             cfg.KafkaOptions.Topic,
+		GroupID:           cfg.KafkaOptions.ReaderOptions.GroupID,
+		Partition:         cfg.KafkaOptions.ReaderOptions.Partition,
+		QueueCapacity:     cfg.KafkaOptions.ReaderOptions.QueueCapacity,
+		MinBytes:          cfg.KafkaOptions.ReaderOptions.MinBytes,
+		MaxBytes:          cfg.KafkaOptions.ReaderOptions.MaxBytes,
+		MaxWait:           cfg.KafkaOptions.ReaderOptions.MaxWait,
+		ReadBatchTimeout:  cfg.KafkaOptions.ReaderOptions.ReadBatchTimeout,
+		HeartbeatInterval: cfg.KafkaOptions.ReaderOptions.HeartbeatInterval,
+		CommitInterval:    cfg.KafkaOptions.ReaderOptions.CommitInterval,
+		RebalanceTimeout:  cfg.KafkaOptions.ReaderOptions.RebalanceTimeout,
+		StartOffset:       cfg.KafkaOptions.ReaderOptions.StartOffset,
+		MaxAttempts:       cfg.KafkaOptions.ReaderOptions.MaxAttempts,
+	})
+
+	return reader, nil
+}
+
 // ProvideStoreWithMongo 提供带有MongoDB支持的Store实例给Wire
 func ProvideStoreWithMongo(cfg *Config) (store.IStore, error) {
 	// 创建传统数据库连接
@@ -200,20 +265,14 @@ func ProvideStoreWithMongo(cfg *Config) (store.IStore, error) {
 		return nil, fmt.Errorf("创建MongoDB连接失败: %w", err)
 	}
 
-	// 获取documents集合
-	documentCollection := mongoManager.GetCollection("documents")
-
 	// 创建带有MongoDB支持的store实例
-	return store.NewStoreWithMongo(db, documentCollection), nil
+	return store.NewStoreWithMongo(db, mongoManager), nil
 }
 
 // CreateWatcherConfig used to create configuration used by all watcher.
-func (cfg *Config) CreateWatcherConfig(db *gorm.DB, mongoManager *MongoManager, cacheManager *cache.CacheManager) (*watcher.AggregateConfig, error) {
-	// 获取documents集合
-	documentCollection := mongoManager.GetCollection("documents")
-
+func (cfg *Config) CreateWatcherConfig(db *gorm.DB, mongoManager *MongoManager) (*watcher.AggregateConfig, error) {
 	// 创建带有MongoDB支持的store实例
-	storeClient := store.NewStoreWithMongo(db, documentCollection)
+	storeClient := store.NewStoreWithMongo(db, mongoManager)
 
 	// 创建 MinIO 客户端 (使用 fake 实现)
 	minioClient, err := fake.NewFakeMinioClient("default-bucket")
@@ -225,7 +284,6 @@ func (cfg *Config) CreateWatcherConfig(db *gorm.DB, mongoManager *MongoManager, 
 		Store:                 storeClient,
 		DB:                    db,
 		Minio:                 minioClient,
-		Cache:                 cacheManager,
 		UserWatcherMaxWorkers: cfg.UserWatcherMaxWorkers,
 	}, nil
 }
@@ -265,6 +323,27 @@ func (s *UnionServer) Run() error {
 	if s.srv != nil {
 		dcplog.Infow("Stopping server")
 		s.srv.GracefulStop(ctx)
+	}
+
+	// 关闭Redis客户端
+	if s.redisClient != nil {
+		if err := s.redisClient.Close(); err != nil {
+			dcplog.Errorw("关闭Redis客户端失败", "error", err)
+		}
+	}
+
+	// 关闭Kafka Writer
+	if s.kafkaWriter != nil {
+		if err := s.kafkaWriter.Close(); err != nil {
+			dcplog.Errorw("关闭Kafka Writer失败", "error", err)
+		}
+	}
+
+	// 关闭Kafka Reader
+	if s.kafkaReader != nil {
+		if err := s.kafkaReader.Close(); err != nil {
+			dcplog.Errorw("关闭Kafka Reader失败", "error", err)
+		}
 	}
 
 	// 关闭数据库连接

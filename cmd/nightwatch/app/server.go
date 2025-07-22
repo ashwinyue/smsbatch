@@ -78,6 +78,10 @@ The project features include:
 	// 添加 --version 标志
 	version.AddFlags(cmd.PersistentFlags())
 
+	// 添加子命令
+	cmd.AddCommand(NewKafkaCommand())
+	cmd.AddCommand(NewMessageCommand())
+
 	return cmd
 }
 
