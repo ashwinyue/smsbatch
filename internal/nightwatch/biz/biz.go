@@ -13,6 +13,7 @@ import (
 
 	cronjobv1 "github.com/ashwinyue/dcp/internal/nightwatch/biz/v1/cronjob"
 	postv1 "github.com/ashwinyue/dcp/internal/nightwatch/biz/v1/post"
+	smsbatchv1 "github.com/ashwinyue/dcp/internal/nightwatch/biz/v1/smsbatch"
 
 	// Post V2 版本（未实现，仅展示用）
 	// postv2 "github.com/ashwinyue/dcp/internal/apiserver/biz/v2/post".
@@ -31,6 +32,8 @@ type IBiz interface {
 	CronJobV1() cronjobv1.CronJobBiz
 	// PostV1 获取帖子业务接口.
 	PostV1() postv1.PostBiz
+	// SmsBatchV1 获取SMS批次业务接口.
+	SmsBatchV1() smsbatchv1.ISmsBatchV1
 	// PostV2 获取帖子业务接口（V2 版本）.
 	// PostV2() post.PostBiz
 
@@ -56,4 +59,9 @@ func (b *biz) CronJobV1() cronjobv1.CronJobBiz {
 // PostV1 返回一个实现了 PostBiz 接口的实例.
 func (b *biz) PostV1() postv1.PostBiz {
 	return postv1.New(b.store)
+}
+
+// SmsBatchV1 返回一个实现了 ISmsBatchV1 接口的实例.
+func (b *biz) SmsBatchV1() smsbatchv1.ISmsBatchV1 {
+	return smsbatchv1.New(b.store)
 }
