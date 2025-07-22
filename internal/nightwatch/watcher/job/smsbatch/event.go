@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/looplab/fsm"
-	"k8s.io/utils/ptr"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/path"
