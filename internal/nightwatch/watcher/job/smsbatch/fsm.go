@@ -4,6 +4,7 @@ import (
 	"github.com/looplab/fsm"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
+	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	corefsm "github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	fsmutil "github.com/ashwinyue/dcp/internal/pkg/util/fsm"
 )
@@ -12,7 +13,9 @@ import (
 // It configures the FSM with defined events and their corresponding state transitions,
 // as well as callbacks for entering specific states.
 func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM) *corefsm.StateMachine {
-	sm := corefsm.NewStateMachine(smsBatch, watcher)
+	// Create table storage service from watcher's store
+	tableStorageService := service.NewTableStorageService(watcher.Store.SmsRecord())
+	sm := corefsm.NewStateMachine(smsBatch, watcher, tableStorageService)
 
 	// Set the event publisher for the coordinator
 	sm.EventCoordinator.SetEventPublisher(watcher.EventPublisher)

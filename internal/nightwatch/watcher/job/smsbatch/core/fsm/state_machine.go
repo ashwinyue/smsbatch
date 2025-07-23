@@ -2,81 +2,15 @@ package fsm
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"github.com/looplab/fsm"
-
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/manager"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/processor"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/publisher"
+	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	jobconditionsutil "github.com/ashwinyue/dcp/internal/pkg/util/jobconditions"
+	"github.com/looplab/fsm"
 )
-
-// Validator handles SMS batch parameter validation
-type Validator struct{}
-
-// NewValidator creates a new Validator instance
-func NewValidator() *Validator {
-	return &Validator{}
-}
-
-// ValidateBatchParams validates SMS batch parameters
-func (v *Validator) ValidateBatchParams(smsBatch *model.SmsBatchM) error {
-	if smsBatch.BatchID == "" {
-		return fmt.Errorf("batch ID is required")
-	}
-	if smsBatch.TableStorageName == "" {
-		return fmt.Errorf("table storage name is required")
-	}
-	return nil
-}
-
-// EventCoordinator coordinates SMS batch event processing
-type EventCoordinator struct {
-	preparationProcessor *processor.PreparationProcessor
-	deliveryProcessor    *processor.DeliveryProcessor
-	stateManager         *manager.StateManager
-	eventPublisher       *publisher.EventPublisher
-	validator            *Validator
-	partitionManager     *manager.PartitionManager
-}
-
-// EventCoordinatorInterface defines the interface for event coordination
-type EventCoordinatorInterface interface {
-	SetEventPublisher(mqsPublisher interface{})
-}
-
-// Ensure EventCoordinator implements EventCoordinatorInterface
-var _ EventCoordinatorInterface = (*EventCoordinator)(nil)
-
-// NewEventCoordinator creates a new EventCoordinator instance
-func NewEventCoordinator() *EventCoordinator {
-	validator := NewValidator()
-	partitionManager := manager.NewPartitionManager()
-	eventPublisher := publisher.NewEventPublisher(nil) // Will be set when watcher is available
-	preparationProcessor := processor.NewPreparationProcessor(eventPublisher, partitionManager)
-	deliveryProcessor := processor.NewDeliveryProcessor(partitionManager, eventPublisher)
-	// TODO: Fix StateManager constructor - it expects IStore interface
-	stateManager := &manager.StateManager{}
-
-	return &EventCoordinator{
-		preparationProcessor: preparationProcessor,
-		deliveryProcessor:    deliveryProcessor,
-		stateManager:         stateManager,
-		eventPublisher:       eventPublisher,
-		validator:            validator,
-		partitionManager:     partitionManager,
-	}
-}
-
-// SetEventPublisher sets the event publisher with MQS service
-func (ec *EventCoordinator) SetEventPublisher(mqsPublisher interface{}) {
-	// This will be called when the watcher is initialized
-	// ec.eventPublisher.mqsPublisher = mqsPublisher
-}
 
 // StateMachine represents the state machine for SMS batch processing
 type StateMachine struct {
@@ -87,8 +21,8 @@ type StateMachine struct {
 }
 
 // NewStateMachine creates a new StateMachine instance
-func NewStateMachine(smsBatch *model.SmsBatchM, watcher interface{}) *StateMachine {
-	eventCoordinator := NewEventCoordinator()
+func NewStateMachine(smsBatch *model.SmsBatchM, watcher interface{}, tableStorageService service.TableStorageService) *StateMachine {
+	eventCoordinator := NewEventCoordinator(tableStorageService)
 	return &StateMachine{
 		SmsBatch:         smsBatch,
 		Watcher:          watcher,
@@ -111,7 +45,7 @@ func (sm *StateMachine) DeliveryExecute(ctx context.Context, event *fsm.Event) e
 // PreparationPause handles pausing the preparation phase.
 func (sm *StateMachine) PreparationPause(ctx context.Context, event *fsm.Event) error {
 	ec := sm.EventCoordinator.(*EventCoordinator)
-	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, "paused")
+	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, smsbatch.BatchStatusPaused)
 	log.Infow("SMS batch preparation paused", "batch_id", sm.SmsBatch.BatchID)
 	return nil
 }
@@ -127,7 +61,7 @@ func (sm *StateMachine) DeliveryPause(ctx context.Context, event *fsm.Event) err
 // PreparationResume handles resuming the preparation phase.
 func (sm *StateMachine) PreparationResume(ctx context.Context, event *fsm.Event) error {
 	ec := sm.EventCoordinator.(*EventCoordinator)
-	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, "running")
+	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, smsbatch.BatchStatusRunning)
 	log.Infow("SMS batch preparation resumed", "batch_id", sm.SmsBatch.BatchID)
 	return nil
 }
@@ -138,12 +72,6 @@ func (sm *StateMachine) DeliveryResume(ctx context.Context, event *fsm.Event) er
 	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, "running")
 	log.Infow("SMS batch delivery resumed", "batch_id", sm.SmsBatch.BatchID)
 	return nil
-}
-
-// SetDefaultSmsBatchParams sets default parameters for SMS batch
-func SetDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
-	// Implementation for setting default parameters
-	// This function was moved from types package
 }
 
 // InitialExecute handles the initial state of the SMS batch.
@@ -257,7 +185,7 @@ func (sm *StateMachine) BatchSucceeded(ctx context.Context, event *fsm.Event) er
 // BatchFailed handles the failure of the SMS batch.
 func (sm *StateMachine) BatchFailed(ctx context.Context, event *fsm.Event) error {
 	ec := sm.EventCoordinator.(*EventCoordinator)
-	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, "failed")
+	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, smsbatch.BatchStatusFailed)
 	log.Errorw("SMS batch failed", "batch_id", sm.SmsBatch.BatchID)
 	return nil
 }
@@ -272,7 +200,7 @@ func (sm *StateMachine) BatchFailed(ctx context.Context, event *fsm.Event) error
 // BatchAborted handles the abortion of the SMS batch.
 func (sm *StateMachine) BatchAborted(ctx context.Context, event *fsm.Event) error {
 	ec := sm.EventCoordinator.(*EventCoordinator)
-	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, "aborted")
+	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, smsbatch.BatchStatusAborted)
 	log.Infow("SMS batch aborted", "batch_id", sm.SmsBatch.BatchID)
 	return nil
 }
@@ -296,7 +224,7 @@ func (sm *StateMachine) BatchResumed(ctx context.Context, event *fsm.Event) erro
 // BatchRetry handles the retry of the SMS batch.
 func (sm *StateMachine) BatchRetry(ctx context.Context, event *fsm.Event) error {
 	ec := sm.EventCoordinator.(*EventCoordinator)
-	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, "retrying")
+	ec.stateManager.UpdateBatchStatus(sm.SmsBatch, smsbatch.BatchStatusRetrying)
 	log.Infow("SMS batch retrying", "batch_id", sm.SmsBatch.BatchID)
 	return nil
 }
@@ -316,4 +244,49 @@ func (sm *StateMachine) EnterState(ctx context.Context, event *fsm.Event) error 
 		sm.SmsBatch.Results.CurrentState = event.Dst
 	}
 	return nil
+}
+
+// SetDefaultSmsBatchParams sets default parameters for the SMS batch if they are not already set
+func SetDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
+	if smsBatch.Params == nil {
+		smsBatch.Params = &model.SmsBatchParams{}
+	}
+
+	if smsBatch.Params.BatchSize == 0 {
+		smsBatch.Params.BatchSize = 1000
+	}
+
+	if smsBatch.Params.PartitionCount == 0 {
+		smsBatch.Params.PartitionCount = 4
+	}
+
+	if smsBatch.Params.JobTimeout == 0 {
+		smsBatch.Params.JobTimeout = 3600
+	}
+
+	if smsBatch.Params.MaxRetries == 0 {
+		smsBatch.Params.MaxRetries = 3
+	}
+
+	if !smsBatch.Params.IdempotentExecution {
+		smsBatch.Params.IdempotentExecution = true
+	}
+
+	if smsBatch.Params.PreparationConfig == nil {
+		smsBatch.Params.PreparationConfig = map[string]interface{}{
+			"pack_size":            1000,
+			"max_concurrent_packs": 4,
+			"enable_validation":    true,
+			"storage_timeout":      300,
+		}
+	}
+
+	if smsBatch.Params.DeliveryConfig == nil {
+		smsBatch.Params.DeliveryConfig = map[string]interface{}{
+			"max_concurrent_partitions": 4,
+			"delivery_timeout":          600,
+			"retry_delay_seconds":       30,
+			"enable_delivery_tracking":  true,
+		}
+	}
 }

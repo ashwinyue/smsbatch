@@ -5,24 +5,38 @@
 package model
 
 import (
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 )
 
 const TableNameSmsBatchM = "nw_sms_batch"
 
 // SmsBatchM mapped from table <nw_sms_batch>
 type SmsBatchM struct {
-	ID                     int64            `gorm:"column:id;type:bigint(20) unsigned;primaryKey;autoIncrement:true;comment:主键 ID" json:"id"`                                        // 主键 ID
-	BatchID                string           `gorm:"column:batch_id;type:varchar(100);not null;uniqueIndex:idx_batch_id;comment:SMS批次ID" json:"batch_id"`                             // SMS批次ID
-	UserID                 string           `gorm:"column:user_id;type:varchar(100);not null;index:idx_user_id,priority:1;comment:创建人" json:"user_id"`                               // 创建人
-	Scope                  string           `gorm:"column:scope;type:varchar(256);not null;index:idx_scope,priority:1;default:default;comment:SMS批次作用域" json:"scope"`                // SMS批次作用域
-	CronJobID              *string          `gorm:"column:cronjob_id;type:varchar(100);index:idx_cronjob_id,priority:1;comment:CronJob ID，可选" json:"cronjob_id"`                     // CronJob ID，可选
-	Name                   string           `gorm:"column:name;type:varchar(255);not null;comment:SMS批次名称" json:"name"`                                                              // SMS批次名称
-	Description            string           `gorm:"column:description;type:varchar(256);not null;comment:SMS批次描述" json:"description"`                                                // SMS批次描述
-	CampaignID             string           `gorm:"column:campaign_id;type:varchar(100);not null;index:idx_campaign_id,priority:1;comment:运营活动ID" json:"campaign_id"`                // 运营活动ID
-	CampaignName           string           `gorm:"column:campaign_name;type:varchar(255);not null;comment:运营活动名称" json:"campaign_name"`                                             // 运营活动名称
-	MarketingProgramID     string           `gorm:"column:marketing_program_id;type:varchar(100);comment:市场营销程序ID" json:"marketing_program_id"`                                      // 市场营销程序ID
-	TaskID                 string           `gorm:"column:task_id;type:varchar(100);not null;comment:任务ID" json:"task_id"`                                                           // 任务ID
+	ID                 int64   `gorm:"column:id;type:bigint(20) unsigned;primaryKey;autoIncrement:true;comment:主键 ID" json:"id"`                         // 主键 ID
+	BatchID            string  `gorm:"column:batch_id;type:varchar(100);not null;uniqueIndex:idx_batch_id;comment:SMS批次ID" json:"batch_id"`              // SMS批次ID
+	UserID             string  `gorm:"column:user_id;type:varchar(100);not null;index:idx_user_id,priority:1;comment:创建人" json:"user_id"`                // 创建人
+	Scope              string  `gorm:"column:scope;type:varchar(256);not null;index:idx_scope,priority:1;default:default;comment:SMS批次作用域" json:"scope"` // SMS批次作用域
+	CronJobID          *string `gorm:"column:cronjob_id;type:varchar(100);index:idx_cronjob_id,priority:1;comment:CronJob ID，可选" json:"cronjob_id"`      // CronJob ID，可选
+	Name               string  `gorm:"column:name;type:varchar(255);not null;comment:SMS批次名称" json:"name"`                                               // SMS批次名称
+	Description        string  `gorm:"column:description;type:varchar(256);not null;comment:SMS批次描述" json:"description"`                                 // SMS批次描述
+	CampaignID         string  `gorm:"column:campaign_id;type:varchar(100);not null;index:idx_campaign_id,priority:1;comment:运营活动ID" json:"campaign_id"` // 运营活动ID
+	CampaignName       string  `gorm:"column:campaign_name;type:varchar(255);not null;comment:运营活动名称" json:"campaign_name"`                              // 运营活动名称
+	MarketingProgramID string  `gorm:"column:marketing_program_id;type:varchar(100);comment:市场营销程序ID" json:"marketing_program_id"`                       // 市场营销程序ID
+	TaskID             string  `gorm:"column:task_id;type:varchar(100);not null;comment:任务ID" json:"task_id"`                                            // 任务ID
+	// Java项目集成的核心字段
+	Priority              int32   `gorm:"column:priority;type:int(11);not null;default:0;comment:批次优先级" json:"priority"`                                    // 批次优先级
+	ExecutionMode         string  `gorm:"column:execution_mode;type:varchar(32);not null;default:'ASYNC';comment:执行模式(SYNC/ASYNC)" json:"execution_mode"`   // 执行模式
+	RetryPolicy           string  `gorm:"column:retry_policy;type:varchar(32);not null;default:'EXPONENTIAL';comment:重试策略" json:"retry_policy"`             // 重试策略
+	MaxConcurrency        int32   `gorm:"column:max_concurrency;type:int(11);not null;default:10;comment:最大并发数" json:"max_concurrency"`                     // 最大并发数
+	RateLimitPerSecond    int32   `gorm:"column:rate_limit_per_second;type:int(11);not null;default:100;comment:每秒速率限制" json:"rate_limit_per_second"`       // 每秒速率限制
+	FailureThreshold      float64 `gorm:"column:failure_threshold;type:decimal(5,2);not null;default:0.10;comment:失败阈值" json:"failure_threshold"`           // 失败阈值
+	CircuitBreakerEnabled bool    `gorm:"column:circuit_breaker_enabled;type:tinyint(1);not null;default:1;comment:是否启用熔断器" json:"circuit_breaker_enabled"` // 是否启用熔断器
+	HealthCheckEnabled    bool    `gorm:"column:health_check_enabled;type:tinyint(1);not null;default:1;comment:是否启用健康检查" json:"health_check_enabled"`      // 是否启用健康检查
+
 	TableStorageName       string           `gorm:"column:table_name;type:varchar(255);not null;comment:Table Storage名称" json:"table_name"`                                          // Table Storage名称
 	ContentID              string           `gorm:"column:content_id;type:varchar(100);comment:短信模板内容ID" json:"content_id"`                                                          // 短信模板内容ID
 	Content                string           `gorm:"column:content;type:text;comment:短信模板内容" json:"content"`                                                                          // 短信模板内容
@@ -109,6 +123,95 @@ type SmsBatchPartitionStatus struct {
 }
 
 // TableName SmsBatchM's table name
-func (*SmsBatchM) TableName() string {
+func (SmsBatchM) TableName() string {
 	return TableNameSmsBatchM
+}
+
+// Java项目集成的业务方法
+
+// GetContainsURL 检查内容是否包含URL占位符
+func (s *SmsBatchM) GetContainsURL() bool {
+	if s.Content == "" {
+		return false
+	}
+	return strings.Contains(s.Content, "[$=URL=$]")
+}
+
+// CanStart 检查批次是否可以开始执行
+func (s *SmsBatchM) CanStart() bool {
+	if s.CurrentState == "" {
+		return true
+	}
+	// 可以开始的状态：初始、失败、暂停、取消
+	return s.CurrentState == smsbatch.BatchPhaseInitial ||
+		s.CurrentState == smsbatch.BatchPhaseFailed ||
+		s.CurrentState == smsbatch.BatchPhasePreparationPaused ||
+		s.CurrentState == smsbatch.BatchPhaseDeliveryPaused ||
+		s.CurrentState == smsbatch.BatchPhaseAborted
+}
+
+// CanChangeProvider 检查是否可以更改提供商
+func (s *SmsBatchM) CanChangeProvider() bool {
+	// 只有在准备阶段才能更改提供商
+	return strings.Contains(s.CurrentState, "preparation") || s.CurrentState == smsbatch.BatchPhaseInitial
+}
+
+// HasProvider 检查是否有提供商
+func (s *SmsBatchM) HasProvider() bool {
+	return s.ProviderType != ""
+}
+
+// IsPreparationPhase 检查是否在准备阶段
+func (s *SmsBatchM) IsPreparationPhase() bool {
+	return strings.Contains(s.CurrentState, "preparation")
+}
+
+// IsDeliveryPhase 检查是否在发送阶段
+func (s *SmsBatchM) IsDeliveryPhase() bool {
+	return strings.Contains(s.CurrentState, "delivery")
+}
+
+// IsCompleted 检查批次是否已完成
+func (s *SmsBatchM) IsCompleted() bool {
+	return s.CurrentState == smsbatch.BatchPhaseSucceeded ||
+		s.CurrentState == smsbatch.BatchPhaseFailed ||
+		s.CurrentState == smsbatch.BatchPhaseAborted
+}
+
+// IsRunning 检查批次是否正在运行
+func (s *SmsBatchM) IsRunning() bool {
+	return strings.Contains(s.CurrentState, "running")
+}
+
+// IsPaused 检查批次是否已暂停
+func (s *SmsBatchM) IsPaused() bool {
+	return strings.Contains(s.CurrentState, "paused")
+}
+
+// GetCurrentPhase 获取当前阶段
+func (s *SmsBatchM) GetCurrentPhase() string {
+	if strings.Contains(s.CurrentState, "preparation") {
+		return "preparation"
+	}
+	if strings.Contains(s.CurrentState, "delivery") {
+		return "delivery"
+	}
+	return "initial"
+}
+
+// ValidateForExecution 验证批次是否可以执行
+func (s *SmsBatchM) ValidateForExecution() error {
+	if s.BatchID == "" {
+		return fmt.Errorf("batch ID is required")
+	}
+	if s.TableStorageName == "" {
+		return fmt.Errorf("table storage name is required")
+	}
+	if s.CampaignID == "" {
+		return fmt.Errorf("campaign ID is required")
+	}
+	if !s.HasProvider() {
+		return fmt.Errorf("provider type is required")
+	}
+	return nil
 }

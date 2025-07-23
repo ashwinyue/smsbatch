@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corefsm "github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
+	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 )
 
 // Validator handles SMS batch parameter validation
@@ -34,7 +35,7 @@ func (v *Validator) ShouldPausePreparation(ctx context.Context, sm *corefsm.Stat
 		return true
 	}
 	// Check if batch is paused
-	if sm.SmsBatch.Status == "paused" {
+	if smsbatch.IsPausedStatus(sm.SmsBatch.Status) {
 		return true
 	}
 	return false

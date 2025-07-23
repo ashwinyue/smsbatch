@@ -20,6 +20,11 @@ func NewEventPublisher(mqsPublisher *mqs.BatchEventPublisher) *EventPublisher {
 	}
 }
 
+// SetMqsPublisher sets the MQS publisher
+func (ep *EventPublisher) SetMqsPublisher(mqsPublisher *mqs.BatchEventPublisher) {
+	ep.mqsPublisher = mqsPublisher
+}
+
 // PublishPreparationProgress publishes preparation progress update
 func (ep *EventPublisher) PublishPreparationProgress(ctx context.Context, batchID, status string, processed, success, failed int64, progress float64) error {
 	if ep.mqsPublisher == nil {

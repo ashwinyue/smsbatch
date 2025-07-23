@@ -39,6 +39,8 @@ type IStore interface {
 	CronJob() CronJobStore
 	Job() JobStore
 	SmsBatch() SmsBatchStore
+	// SmsRecord 返回SMS记录存储接口，替代Java项目中的Table Storage功能
+	SmsRecord() SmsRecordMongoStore
 	Post() PostStore
 	// ConcretePost ConcretePosts 是一个示例 store 实现，用来演示在 Go 中如何直接与 DB 交互.
 	ConcretePost() ConcretePostStore
@@ -156,6 +158,16 @@ func (store *datastore) SmsBatch() SmsBatchStore {
 // Post 返回一个实现了 PostStore 接口的实例.
 func (store *datastore) Post() PostStore {
 	return newPostStore(store)
+}
+
+// SmsRecord 返回一个实现了 SmsRecordMongoStore 接口的实例.
+// 这个方法替代了Java项目中的Table Storage功能
+func (store *datastore) SmsRecord() SmsRecordMongoStore {
+	// SMS记录必须使用MongoDB存储
+	if store.mongoManager == nil {
+		panic("MongoDB manager is required for SMS record storage")
+	}
+	return NewSmsRecordMongoStore(store.mongoManager)
 }
 
 // ConcretePost 返回一个实现了 ConcretePostStore 接口的实例.

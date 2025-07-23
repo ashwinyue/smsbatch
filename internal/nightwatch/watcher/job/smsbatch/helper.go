@@ -4,51 +4,55 @@ import (
 	"time"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
+	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 	jobconditionsutil "github.com/ashwinyue/dcp/internal/pkg/util/jobconditions"
 )
 
-// SMS Batch State Constants
+// SMS Batch State Constants - 使用统一的状态定义
+// SMS Batch State Constants - using unified status definitions
 const (
 	// Initial state
-	SmsBatchInitial = "sms_batch_initial"
+	SmsBatchInitial = smsbatch.BatchPhaseInitial
 
 	// Preparation states
-	SmsBatchPreparationReady     = "sms_batch_preparation_ready"
-	SmsBatchPreparationRunning   = "sms_batch_preparation_running"
-	SmsBatchPreparationCompleted = "sms_batch_preparation_completed"
-	SmsBatchPreparationPaused    = "sms_batch_preparation_paused"
+	SmsBatchPreparationReady     = smsbatch.BatchPhasePreparationReady
+	SmsBatchPreparationRunning   = smsbatch.BatchPhasePreparationRunning
+	SmsBatchPreparationCompleted = smsbatch.BatchPhasePreparationCompleted
+	SmsBatchPreparationPaused    = smsbatch.BatchPhasePreparationPaused
 
 	// Delivery states
-	SmsBatchDeliveryReady     = "sms_batch_delivery_ready"
-	SmsBatchDeliveryRunning   = "sms_batch_delivery_running"
-	SmsBatchDeliveryCompleted = "sms_batch_delivery_completed"
-	SmsBatchDeliveryPaused    = "sms_batch_delivery_paused"
+	SmsBatchDeliveryReady     = smsbatch.BatchPhaseDeliveryReady
+	SmsBatchDeliveryRunning   = smsbatch.BatchPhaseDeliveryRunning
+	SmsBatchDeliveryCompleted = smsbatch.BatchPhaseDeliveryCompleted
+	SmsBatchDeliveryPaused    = smsbatch.BatchPhaseDeliveryPaused
 
 	// Final states
-	SmsBatchSucceeded = "sms_batch_succeeded"
-	SmsBatchFailed    = "sms_batch_failed"
-	SmsBatchAborted   = "sms_batch_aborted"
+	SmsBatchSucceeded = smsbatch.BatchPhaseSucceeded
+	SmsBatchFailed    = smsbatch.BatchPhaseFailed
+	SmsBatchAborted   = smsbatch.BatchPhaseAborted
 
-	// Events
-	SmsBatchPausePreparation  = "pause_preparation"
-	SmsBatchResumePreparation = "resume_preparation"
-	SmsBatchPauseDelivery     = "pause_delivery"
-	SmsBatchResumeDelivery    = "resume_delivery"
-	SmsBatchRetryPreparation  = "retry_preparation"
-	SmsBatchRetryDelivery     = "retry_delivery"
-	SmsBatchPreparationFailed = "preparation_failed"
-	SmsBatchDeliveryFailed    = "delivery_failed"
-	SmsBatchAbort             = "abort"
+	// Events - 使用统一的事件定义
+	// Events - using unified event definitions
+	SmsBatchPausePreparation  = smsbatch.EventPausePreparation
+	SmsBatchResumePreparation = smsbatch.EventResumePreparation
+	SmsBatchPauseDelivery     = smsbatch.EventPauseDelivery
+	SmsBatchResumeDelivery    = smsbatch.EventResumeDelivery
+	SmsBatchRetryPreparation  = smsbatch.EventRetryPreparation
+	SmsBatchRetryDelivery     = smsbatch.EventRetryDelivery
+	SmsBatchPreparationFailed = smsbatch.EventPreparationFailed
+	SmsBatchDeliveryFailed    = smsbatch.EventDeliveryFailed
+	SmsBatchAbort             = smsbatch.EventAbort
 
-	// Configuration constants
-	SmsBatchJobScope       = "sms_batch"
-	SmsBatchWatcher        = "sms_batch_watcher"
-	SmsBatchTimeout        = 3600 // 1 hour in seconds
-	SmsBatchPreparationQPS = 10
-	SmsBatchDeliveryQPS    = 20
-	SmsBatchMaxWorkers     = 5
-	JobNonSuspended        = false
-	IdempotentExecution    = "idempotent"
+	// Configuration constants - 使用统一的配置定义
+	// Configuration constants - using unified configuration definitions
+	SmsBatchJobScope       = smsbatch.JobScope
+	SmsBatchWatcher        = smsbatch.WatcherName
+	SmsBatchTimeout        = smsbatch.DefaultTimeout
+	SmsBatchPreparationQPS = smsbatch.PreparationQPS
+	SmsBatchDeliveryQPS    = smsbatch.DeliveryQPS
+	SmsBatchMaxWorkers     = smsbatch.MaxWorkers
+	JobNonSuspended        = smsbatch.NonSuspended
+	IdempotentExecution    = smsbatch.IdempotentExecution
 )
 
 // Note: We now use v1.MessageBatchResults and v1.MessageBatchPhaseStats
@@ -150,53 +154,53 @@ func SetDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
 	// Initialize params if nil
 	if smsBatch.Params == nil {
 		// Initialize params if needed
-		// smsBatch.Params = &model.SmsBatchParams{}
+		smsBatch.Params = &model.SmsBatchParams{}
 	}
 
 	// Set default batch size (similar to Java's pack size)
-	// if smsBatch.Params.BatchSize == 0 {
-	//     smsBatch.Params.BatchSize = 1000 // Default batch size
-	// }
+	if smsBatch.Params.BatchSize == 0 {
+		smsBatch.Params.BatchSize = 1000 // Default batch size
+	}
 
 	// Set default partition count
-	// if smsBatch.Params.PartitionCount == 0 {
-	//     smsBatch.Params.PartitionCount = 4 // Default partition count
-	// }
+	if smsBatch.Params.PartitionCount == 0 {
+		smsBatch.Params.PartitionCount = 4 // Default partition count
+	}
 
 	// Set default job timeout (in seconds)
-	// if smsBatch.Params.JobTimeout == 0 {
-	//     smsBatch.Params.JobTimeout = SmsBatchTimeout // Use constant
-	// }
+	if smsBatch.Params.JobTimeout == 0 {
+		smsBatch.Params.JobTimeout = SmsBatchTimeout // Use constant
+	}
 
 	// Set default max retries
-	// if smsBatch.Params.MaxRetries == 0 {
-	//     smsBatch.Params.MaxRetries = 3 // Default max retries
-	// }
+	if smsBatch.Params.MaxRetries == 0 {
+		smsBatch.Params.MaxRetries = 3 // Default max retries
+	}
 
 	// Set default idempotent execution
-	// if !smsBatch.Params.IdempotentExecution {
-	//     smsBatch.Params.IdempotentExecution = true // Enable idempotent execution by default
-	// }
+	if !smsBatch.Params.IdempotentExecution {
+		smsBatch.Params.IdempotentExecution = true // Enable idempotent execution by default
+	}
 
 	// Initialize preparation config if nil
-	// if smsBatch.Params.PreparationConfig == nil {
-	//     smsBatch.Params.PreparationConfig = map[string]interface{}{
-	//         "pack_size":           1000,
-	//         "max_concurrent_packs": SmsBatchMaxWorkers,
-	//         "enable_validation":    true,
-	//         "storage_timeout":      300, // 5 minutes
-	//     }
-	// }
+	if smsBatch.Params.PreparationConfig == nil {
+		smsBatch.Params.PreparationConfig = map[string]interface{}{
+			"pack_size":            1000,
+			"max_concurrent_packs": SmsBatchMaxWorkers,
+			"enable_validation":    true,
+			"storage_timeout":      300, // 5 minutes
+		}
+	}
 
 	// Initialize delivery config if nil
-	// if smsBatch.Params.DeliveryConfig == nil {
-	//     smsBatch.Params.DeliveryConfig = map[string]interface{}{
-	//         "max_concurrent_partitions": 4,
-	//         "delivery_timeout":          600, // 10 minutes
-	//         "retry_delay_seconds":       30,
-	//         "enable_delivery_tracking":  true,
-	//     }
-	// }
+	if smsBatch.Params.DeliveryConfig == nil {
+		smsBatch.Params.DeliveryConfig = map[string]interface{}{
+			"max_concurrent_partitions": 4,
+			"delivery_timeout":          600, // 10 minutes
+			"retry_delay_seconds":       30,
+			"enable_delivery_tracking":  true,
+		}
+	}
 }
 
 // Legacy functions for backward compatibility
