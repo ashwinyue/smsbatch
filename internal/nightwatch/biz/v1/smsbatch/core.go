@@ -4,7 +4,6 @@ import (
 	"github.com/google/wire"
 	"go.uber.org/ratelimit"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/mqs"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 )
@@ -74,11 +73,10 @@ func NewEventCoordinator(
 	}
 }
 
-// SetEventPublisher sets the event publisher with MQS service
+// SetEventPublisher sets the event publisher (deprecated - MQS service removed)
 func (ec *EventCoordinator) SetEventPublisher(mqsPublisher interface{}) {
-	if publisher, ok := mqsPublisher.(*mqs.BatchEventPublisher); ok {
-		ec.eventPublisher.SetMqsPublisher(publisher)
-	}
+	// MQS service has been removed, this method is now a no-op
+	// Event publishing is handled by the new unified messaging service
 }
 
 // CoreProviderSet is the Wire provider set for core components

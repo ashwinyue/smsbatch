@@ -1,4 +1,4 @@
-package message
+package sender
 
 import (
 	"context"
@@ -25,16 +25,6 @@ type KafkaSenderConfig struct {
 	BatchTimeout time.Duration `json:"batch_timeout,omitempty"`
 	MaxAttempts  int           `json:"max_attempts,omitempty"`
 	Async        bool          `json:"async,omitempty"`
-}
-
-// Message 消息结构
-type Message struct {
-	Key       string                 `json:"key,omitempty"`
-	Value     interface{}            `json:"value"`
-	Headers   map[string]string      `json:"headers,omitempty"`
-	Partition int                    `json:"partition,omitempty"`
-	Timestamp time.Time              `json:"timestamp,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // NewKafkaSender 创建新的Kafka发送器

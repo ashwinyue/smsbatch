@@ -9,7 +9,7 @@ import (
 	"github.com/onexstack/onexstack/pkg/watch/registry"
 	"go.uber.org/ratelimit"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/mqs"
+	"github.com/ashwinyue/dcp/internal/nightwatch/messaging/sender"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher"
 	"github.com/ashwinyue/dcp/internal/pkg/client/minio"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
@@ -34,7 +34,7 @@ type Watcher struct {
 	// Rate limiters for operations.
 	Limiter Limiter
 	// Event publisher for batch events.
-	EventPublisher *mqs.BatchEventPublisher
+	EventPublisher *sender.BatchEventPublisher
 }
 
 // NewWatcher creates a new SMS batch watcher

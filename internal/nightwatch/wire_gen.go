@@ -40,12 +40,12 @@ func InitializeWebServer(config *Config) (server.Server, error) {
 }
 
 // InitializeMessagingService 初始化统一消息服务
-func InitializeMessagingService(store2 store.IStore) (*messaging.UnifiedMessagingService, error) {
-	unifiedMessagingService, err := messaging.NewUnifiedMessagingServiceWithDefaults(store2)
+func InitializeMessagingService(store2 store.IStore) (*messaging.MessagingService, error) {
+	messagingService, err := messaging.NewUnifiedMessagingServiceWithDefaults(store2)
 	if err != nil {
 		return nil, err
 	}
-	return unifiedMessagingService, nil
+	return messagingService, nil
 }
 
 // wire.go:
