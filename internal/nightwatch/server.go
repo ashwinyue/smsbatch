@@ -181,6 +181,9 @@ func (cfg *Config) NewDB() (*gorm.DB, error) {
 		&model.CronJobM{},
 		&model.JobM{},
 		&model.PostM{},
+		&model.SmsBatchM{},
+		&model.SmsRecordM{},
+		&model.SmsBatchPartitionTaskM{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)

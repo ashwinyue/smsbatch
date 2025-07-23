@@ -3,21 +3,58 @@ package smsbatch
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/onexstack/onexstack/pkg/log"
 	"github.com/onexstack/onexstack/pkg/store/where"
 
+	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/conversion"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
+	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	apiv1 "github.com/ashwinyue/dcp/pkg/api/nightwatch/v1"
 )
 
+// BatchStatus 批处理状态信息
+type BatchStatus struct {
+	BatchID     string     `json:"batch_id"`
+	Status      string     `json:"status"`
+	Phase       string     `json:"phase"`
+	Message     string     `json:"message"`
+	LastUpdated time.Time  `json:"last_updated"`
+	StartTime   *time.Time `json:"start_time,omitempty"`
+	EndTime     *time.Time `json:"end_time,omitempty"`
+}
+
+// BatchProgress 批处理进度信息
+type BatchProgress struct {
+	BatchID           string         `json:"batch_id"`
+	TotalRecords      int64          `json:"total_records"`
+	ProcessedRecords  int64          `json:"processed_records"`
+	SuccessRecords    int64          `json:"success_records"`
+	FailedRecords     int64          `json:"failed_records"`
+	ProgressPercent   float64        `json:"progress_percent"`
+	EstimatedTimeLeft *time.Duration `json:"estimated_time_left,omitempty"`
+	ThroughputPerSec  float64        `json:"throughput_per_sec"`
+}
+
 type ISmsBatchV1 interface {
+	// 基础CRUD操作
 	Create(ctx context.Context, rq *apiv1.CreateSmsBatchRequest) (*apiv1.CreateSmsBatchResponse, error)
 	Update(ctx context.Context, rq *apiv1.UpdateSmsBatchRequest) (*apiv1.UpdateSmsBatchResponse, error)
 	Delete(ctx context.Context, rq *apiv1.DeleteSmsBatchRequest) (*apiv1.DeleteSmsBatchResponse, error)
 	Get(ctx context.Context, rq *apiv1.GetSmsBatchRequest) (*apiv1.GetSmsBatchResponse, error)
 	List(ctx context.Context, rq *apiv1.ListSmsBatchRequest) (*apiv1.ListSmsBatchResponse, error)
+
+	// 高级批处理管理功能
+	StartProcessing(ctx context.Context, batchID string) error
+	PauseBatch(ctx context.Context, batchID string) error
+	ResumeBatch(ctx context.Context, batchID string) error
+	RetryBatch(ctx context.Context, batchID string) error
+	AbortBatch(ctx context.Context, batchID string) error
+	GetBatchStatus(ctx context.Context, batchID string) (*BatchStatus, error)
+	GetBatchProgress(ctx context.Context, batchID string) (*BatchProgress, error)
+	ValidateBatch(ctx context.Context, batchID string) error
 }
 
 type smsBatchV1 struct {
@@ -182,4 +219,225 @@ func (s *smsBatchV1) List(ctx context.Context, rq *apiv1.ListSmsBatchRequest) (*
 		Total:      total,
 		SmsBatches: smsBatches,
 	}, nil
+}
+
+// StartProcessing 启动批处理流程
+func (s *smsBatchV1) StartProcessing(ctx context.Context, batchID string) error {
+	// 获取批次信息
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for processing", "batch_id", batchID)
+		return err
+	}
+
+	// 创建状态机并触发初始事件
+	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
+		log.Errorw(err, "Failed to start batch processing", "batch_id", batchID)
+		return err
+	}
+
+	log.Infow("Batch processing started", "batch_id", batchID)
+	return nil
+}
+
+// PauseBatch 暂停批处理
+func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for pausing", "batch_id", batchID)
+		return err
+	}
+
+	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+
+	// 根据当前阶段选择暂停方法
+	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {
+		if err := stateMachine.PreparationPause(ctx, nil); err != nil {
+			log.Errorw(err, "Failed to pause preparation phase", "batch_id", batchID)
+			return err
+		}
+	} else if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "delivery" {
+		if err := stateMachine.DeliveryPause(ctx, nil); err != nil {
+			log.Errorw(err, "Failed to pause delivery phase", "batch_id", batchID)
+			return err
+		}
+	}
+
+	log.Infow("Batch paused", "batch_id", batchID)
+	return nil
+}
+
+// ResumeBatch 恢复批处理
+func (s *smsBatchV1) ResumeBatch(ctx context.Context, batchID string) error {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for resuming", "batch_id", batchID)
+		return err
+	}
+
+	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+
+	// 根据当前阶段选择恢复方法
+	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {
+		if err := stateMachine.PreparationResume(ctx, nil); err != nil {
+			log.Errorw(err, "Failed to resume preparation phase", "batch_id", batchID)
+			return err
+		}
+	} else if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "delivery" {
+		if err := stateMachine.DeliveryResume(ctx, nil); err != nil {
+			log.Errorw(err, "Failed to resume delivery phase", "batch_id", batchID)
+			return err
+		}
+	}
+
+	log.Infow("Batch resumed", "batch_id", batchID)
+	return nil
+}
+
+// RetryBatch 重试批处理
+func (s *smsBatchV1) RetryBatch(ctx context.Context, batchID string) error {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for retry", "batch_id", batchID)
+		return err
+	}
+
+	// 重置批次状态为初始状态
+	smsBatch.Status = "pending"
+	if smsBatch.Results == nil {
+		smsBatch.Results = &model.SmsBatchResults{}
+	}
+	smsBatch.Results.CurrentPhase = "initial"
+	smsBatch.Results.RetryCount = smsBatch.Results.RetryCount + 1
+
+	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
+		log.Errorw(err, "Failed to update batch for retry", "batch_id", batchID)
+		return err
+	}
+
+	// 重新启动处理
+	return s.StartProcessing(ctx, batchID)
+}
+
+// AbortBatch 中止批处理
+func (s *smsBatchV1) AbortBatch(ctx context.Context, batchID string) error {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for aborting", "batch_id", batchID)
+		return err
+	}
+
+	// 更新批次状态为已中止
+	smsBatch.Status = "aborted"
+	if smsBatch.Results == nil {
+		smsBatch.Results = &model.SmsBatchResults{}
+	}
+	smsBatch.Results.CurrentPhase = "aborted"
+	smsBatch.Results.CurrentState = "aborted"
+
+	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
+		log.Errorw(err, "Failed to update batch status to aborted", "batch_id", batchID)
+		return err
+	}
+
+	log.Infow("Batch aborted", "batch_id", batchID)
+	return nil
+}
+
+// GetBatchStatus 获取批处理状态
+func (s *smsBatchV1) GetBatchStatus(ctx context.Context, batchID string) (*BatchStatus, error) {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch status", "batch_id", batchID)
+		return nil, err
+	}
+
+	status := &BatchStatus{
+		BatchID:     smsBatch.BatchID,
+		Status:      smsBatch.Status,
+		LastUpdated: smsBatch.UpdatedAt,
+	}
+
+	if smsBatch.Results != nil {
+		status.Phase = smsBatch.Results.CurrentPhase
+		if smsBatch.Results.ErrorMessage != "" {
+			status.Message = smsBatch.Results.ErrorMessage
+		}
+	}
+
+	return status, nil
+}
+
+// GetBatchProgress 获取批处理进度
+func (s *smsBatchV1) GetBatchProgress(ctx context.Context, batchID string) (*BatchProgress, error) {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for progress", "batch_id", batchID)
+		return nil, err
+	}
+
+	progress := &BatchProgress{
+		BatchID: smsBatch.BatchID,
+	}
+
+	// 从Results中获取进度信息
+	if smsBatch.Results != nil {
+		progress.TotalRecords = smsBatch.Results.TotalMessages
+		progress.ProcessedRecords = smsBatch.Results.ProcessedMessages
+		progress.SuccessRecords = smsBatch.Results.SuccessMessages
+		progress.FailedRecords = smsBatch.Results.FailedMessages
+		progress.ProgressPercent = smsBatch.Results.ProgressPercent
+	}
+
+	// 如果进度百分比为0，则计算
+	if progress.ProgressPercent == 0 && progress.TotalRecords > 0 {
+		progress.ProgressPercent = float64(progress.ProcessedRecords) / float64(progress.TotalRecords) * 100
+	}
+
+	return progress, nil
+}
+
+// ValidateBatch 验证批处理配置
+func (s *smsBatchV1) ValidateBatch(ctx context.Context, batchID string) error {
+	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
+	if err != nil {
+		log.Errorw(err, "Failed to get SMS batch for validation", "batch_id", batchID)
+		return err
+	}
+
+	// 验证必要字段
+	if smsBatch.Name == "" {
+		return fmt.Errorf("batch name is required")
+	}
+	if smsBatch.TableStorageName == "" {
+		return fmt.Errorf("table storage name is required")
+	}
+	if smsBatch.Content == "" {
+		return fmt.Errorf("content is required")
+	}
+	if smsBatch.MessageType == "" {
+		return fmt.Errorf("message type is required")
+	}
+
+	// 验证调度时间
+	if smsBatch.ScheduleTime != nil && smsBatch.ScheduleTime.Before(time.Now()) {
+		return fmt.Errorf("schedule time cannot be in the past")
+	}
+
+	// 验证消息类型
+	validMessageTypes := []string{"SMS", "MMS", "VOICE"}
+	validType := false
+	for _, validMsgType := range validMessageTypes {
+		if smsBatch.MessageType == validMsgType {
+			validType = true
+			break
+		}
+	}
+	if !validType {
+		return fmt.Errorf("invalid message type: %s", smsBatch.MessageType)
+	}
+
+	log.Infow("Batch validation passed", "batch_id", batchID)
+	return nil
 }

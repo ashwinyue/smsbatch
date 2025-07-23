@@ -58,13 +58,13 @@ func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM
 
 			// Preparation phase callbacks
 			"enter_" + SmsBatchPreparationReady:     fsmutil.WrapEvent(sm.PreparationReady),
-			"enter_" + SmsBatchPreparationRunning:   fsmutil.WrapEvent(sm.PreparationStart),
-			"enter_" + SmsBatchPreparationCompleted: fsmutil.WrapEvent(sm.PreparationExecute),
+			"enter_" + SmsBatchPreparationRunning:   fsmutil.WrapEvent(sm.PreparationExecute),
+			"enter_" + SmsBatchPreparationCompleted: fsmutil.WrapEvent(sm.PreparationCompleted),
 
 			// Delivery phase callbacks
 			"enter_" + SmsBatchDeliveryReady:     fsmutil.WrapEvent(sm.DeliveryReady),
-			"enter_" + SmsBatchDeliveryRunning:   fsmutil.WrapEvent(sm.DeliveryStart),
-			"enter_" + SmsBatchDeliveryCompleted: fsmutil.WrapEvent(sm.DeliveryExecute),
+			"enter_" + SmsBatchDeliveryRunning:   fsmutil.WrapEvent(sm.DeliveryExecute),
+			"enter_" + SmsBatchDeliveryCompleted: fsmutil.WrapEvent(sm.DeliveryCompleted),
 
 			// Pause callbacks
 			"enter_" + SmsBatchPreparationPaused: fsmutil.WrapEvent(sm.PreparationPause),

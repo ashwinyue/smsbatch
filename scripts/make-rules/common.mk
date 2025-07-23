@@ -10,7 +10,7 @@ PROJ_ROOT_DIR := $(abspath $(shell cd $(COMMON_SELF_DIR)/../../ && pwd -P))
 OUTPUT_DIR := $(PROJ_ROOT_DIR)/_output
 
 # 定义包名
-ROOT_PACKAGE=github.com/onexstack/miniblog
+ROOT_PACKAGE=github.com/ashwinyue/dcp
 
 # Protobuf 文件存放路径
 APIROOT=$(PROJ_ROOT_DIR)/pkg/api

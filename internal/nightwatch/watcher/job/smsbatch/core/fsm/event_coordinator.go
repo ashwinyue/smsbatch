@@ -3,6 +3,7 @@ package fsm
 import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/mqs"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/manager"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/processor"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/publisher"
@@ -27,14 +28,15 @@ type EventCoordinatorInterface interface {
 var _ EventCoordinatorInterface = (*EventCoordinator)(nil)
 
 // NewEventCoordinator creates a new EventCoordinator instance
-func NewEventCoordinator(tableStorageService service.TableStorageService) *EventCoordinator {
+func NewEventCoordinator(tableStorageService service.TableStorageService, storeInterface store.IStore) *EventCoordinator {
 	validator := NewValidator()
 	partitionManager := manager.NewPartitionManager()
 	eventPublisher := publisher.NewEventPublisher(nil) // Will be set when watcher is available
 	preparationProcessor := processor.NewPreparationProcessor(eventPublisher, partitionManager, tableStorageService)
 	deliveryProcessor := processor.NewDeliveryProcessor(partitionManager, eventPublisher, tableStorageService)
-	// TODO: Fix StateManager constructor - it expects IStore interface
-	stateManager := &manager.StateManager{}
+
+	// Create StateManager with proper store interface
+	stateManager := manager.NewStateManager(storeInterface)
 
 	return &EventCoordinator{
 		preparationProcessor: preparationProcessor,

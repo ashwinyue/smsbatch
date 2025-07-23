@@ -83,6 +83,11 @@ func (w *Watcher) Spec() string {
 	return "@every 5s"
 }
 
+// GetStore returns the store instance
+func (w *Watcher) GetStore() store.IStore {
+	return w.Store
+}
+
 // SetAggregateConfig configures the watcher with the provided aggregate configuration.
 func (w *Watcher) SetAggregateConfig(config *watcher.AggregateConfig) {
 	w.Minio = config.Minio

@@ -6,6 +6,7 @@ import (
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	jobconditionsutil "github.com/ashwinyue/dcp/internal/pkg/util/jobconditions"
@@ -22,7 +23,13 @@ type StateMachine struct {
 
 // NewStateMachine creates a new StateMachine instance
 func NewStateMachine(smsBatch *model.SmsBatchM, watcher interface{}, tableStorageService service.TableStorageService) *StateMachine {
-	eventCoordinator := NewEventCoordinator(tableStorageService)
+	// Extract store from watcher if available
+	var storeInterface store.IStore
+	if w, ok := watcher.(interface{ GetStore() store.IStore }); ok {
+		storeInterface = w.GetStore()
+	}
+
+	eventCoordinator := NewEventCoordinator(tableStorageService, storeInterface)
 	return &StateMachine{
 		SmsBatch:         smsBatch,
 		Watcher:          watcher,
@@ -40,6 +47,50 @@ func (sm *StateMachine) PreparationExecute(ctx context.Context, event *fsm.Event
 func (sm *StateMachine) DeliveryExecute(ctx context.Context, event *fsm.Event) error {
 	ec := sm.EventCoordinator.(*EventCoordinator)
 	return ec.deliveryProcessor.Execute(ctx, sm.SmsBatch)
+}
+
+// PreparationCompleted handles the completion of SMS preparation phase.
+func (sm *StateMachine) PreparationCompleted(ctx context.Context, event *fsm.Event) error {
+	log.Infow("SMS batch preparation completed", "batch_id", sm.SmsBatch.BatchID)
+
+	if sm.SmsBatch.Results != nil {
+		sm.SmsBatch.Results.CurrentPhase = "preparation"
+		sm.SmsBatch.Results.CurrentState = event.FSM.Current()
+
+		// Finalize preparation stats
+		if sm.SmsBatch.Results.PreparationStats != nil {
+			now := time.Now()
+			sm.SmsBatch.Results.PreparationStats.EndTime = &now
+			if sm.SmsBatch.Results.PreparationStats.StartTime != nil {
+				sm.SmsBatch.Results.PreparationStats.DurationSeconds = int64(now.Sub(*sm.SmsBatch.Results.PreparationStats.StartTime).Seconds())
+			}
+		}
+	}
+
+	sm.SmsBatch.Conditions = jobconditionsutil.Set(sm.SmsBatch.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	return nil
+}
+
+// DeliveryCompleted handles the completion of SMS delivery phase.
+func (sm *StateMachine) DeliveryCompleted(ctx context.Context, event *fsm.Event) error {
+	log.Infow("SMS batch delivery completed", "batch_id", sm.SmsBatch.BatchID)
+
+	if sm.SmsBatch.Results != nil {
+		sm.SmsBatch.Results.CurrentPhase = "delivery"
+		sm.SmsBatch.Results.CurrentState = event.FSM.Current()
+
+		// Finalize delivery stats
+		if sm.SmsBatch.Results.DeliveryStats != nil {
+			now := time.Now()
+			sm.SmsBatch.Results.DeliveryStats.EndTime = &now
+			if sm.SmsBatch.Results.DeliveryStats.StartTime != nil {
+				sm.SmsBatch.Results.DeliveryStats.DurationSeconds = int64(now.Sub(*sm.SmsBatch.Results.DeliveryStats.StartTime).Seconds())
+			}
+		}
+	}
+
+	sm.SmsBatch.Conditions = jobconditionsutil.Set(sm.SmsBatch.Conditions, jobconditionsutil.TrueCondition(event.FSM.Current()))
+	return nil
 }
 
 // PreparationPause handles pausing the preparation phase.
