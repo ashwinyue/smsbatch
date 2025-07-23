@@ -86,6 +86,38 @@ func (c *ServerConfig) InstallRESTAPI(engine *gin.Engine) {
 			smsbatchv1.GET("", handler.ListSmsBatch)           // 查询SmsBatch列表
 		}
 
+		// 状态跟踪相关路由
+		statustrackingv1 := v1.Group("/status")
+		{
+			// 任务状态管理
+			statustrackingv1.PUT("/jobs/:jobId", handler.UpdateJobStatus)  // 更新任务状态
+			statustrackingv1.GET("/jobs/:jobId", handler.GetJobStatus)     // 获取任务状态
+			statustrackingv1.POST("/jobs/track", handler.TrackRunningJobs) // 跟踪运行中的任务
+
+			// 统计信息
+			statustrackingv1.POST("/statistics/jobs", handler.GetJobStatistics)      // 获取任务统计信息
+			statustrackingv1.POST("/statistics/batches", handler.GetBatchStatistics) // 获取批处理统计信息
+
+			// 健康检查和监控
+			statustrackingv1.POST("/health/jobs", handler.JobHealthCheck)      // 任务健康检查
+			statustrackingv1.POST("/metrics/system", handler.GetSystemMetrics) // 获取系统指标
+
+			// 状态管理
+			statustrackingv1.POST("/cleanup", handler.CleanupExpiredStatus)     // 清理过期状态
+			statustrackingv1.POST("/watcher/start", handler.StartStatusWatcher) // 启动状态监控器
+			statustrackingv1.POST("/watcher/stop", handler.StopStatusWatcher)   // 停止状态监控器
+		}
+
+		// 心跳监控相关路由
+		heartbeatv1 := v1.Group("/heartbeat")
+		{
+			// 心跳管理
+			heartbeatv1.POST("/update", handler.UpdateHeartbeat)          // 更新心跳
+			heartbeatv1.GET("/status/:jobId", handler.GetHeartbeatStatus) // 获取心跳状态
+			heartbeatv1.GET("/all", handler.GetAllHeartbeats)             // 获取所有心跳信息
+			heartbeatv1.GET("/metrics", handler.GetHeartbeatMetrics)      // 获取心跳监控指标
+		}
+
 	}
 }
 

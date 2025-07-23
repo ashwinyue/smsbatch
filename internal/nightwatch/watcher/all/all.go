@@ -4,5 +4,5 @@ package all
 import (
 	_ "github.com/ashwinyue/dcp/internal/nightwatch/watcher/cronjob/cronjob"
 	_ "github.com/ashwinyue/dcp/internal/nightwatch/watcher/cronjob/statesync"
-	_ "github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch"
+	_ "github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 )

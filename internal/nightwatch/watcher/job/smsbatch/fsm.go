@@ -4,21 +4,18 @@ import (
 	"github.com/looplab/fsm"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
+	corefsm "github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	fsmutil "github.com/ashwinyue/dcp/internal/pkg/util/fsm"
 )
-
-// StateMachine represents a finite state machine for managing SMS batch processing.
-type StateMachine struct {
-	Watcher  *Watcher
-	SmsBatch *model.SmsBatchM
-	FSM      *fsm.FSM
-}
 
 // NewStateMachine initializes a new StateMachine with the given initial state, watcher, and SMS batch.
 // It configures the FSM with defined events and their corresponding state transitions,
 // as well as callbacks for entering specific states.
-func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM) *StateMachine {
-	sm := &StateMachine{Watcher: watcher, SmsBatch: smsBatch}
+func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM) *corefsm.StateMachine {
+	sm := corefsm.NewStateMachine(smsBatch, watcher)
+
+	// Set the event publisher for the coordinator
+	sm.EventCoordinator.SetEventPublisher(watcher.EventPublisher)
 
 	sm.FSM = fsm.NewFSM(
 		initial,
