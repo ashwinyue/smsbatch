@@ -164,7 +164,10 @@ func (sm *StateMachine) PreparationStart(ctx context.Context, event *fsm.Event) 
 	log.Infow("SMS batch preparation started", "batch_id", sm.SmsBatch.BatchID)
 
 	// Apply rate limiting for preparation
-	// TODO: Implement rate limiting when watcher interface is properly defined
+	if err := sm.applyRateLimit(ctx); err != nil {
+		log.Errorw("Failed to apply rate limit", "batch_id", sm.SmsBatch.BatchID, "error", err)
+		return err
+	}
 	log.Infow("Rate limiting applied for preparation", "batch_id", sm.SmsBatch.BatchID)
 
 	if sm.SmsBatch.Results != nil {
@@ -204,7 +207,10 @@ func (sm *StateMachine) DeliveryStart(ctx context.Context, event *fsm.Event) err
 	log.Infow("SMS batch delivery started", "batch_id", sm.SmsBatch.BatchID)
 
 	// Apply rate limiting for delivery
-	// TODO: Implement rate limiting when watcher interface is properly defined
+	if err := sm.applyRateLimit(ctx); err != nil {
+		log.Errorw("Failed to apply rate limit", "batch_id", sm.SmsBatch.BatchID, "error", err)
+		return err
+	}
 	log.Infow("Rate limiting applied for delivery", "batch_id", sm.SmsBatch.BatchID)
 
 	if sm.SmsBatch.Results != nil {
@@ -295,6 +301,12 @@ func (sm *StateMachine) EnterState(ctx context.Context, event *fsm.Event) error 
 		sm.SmsBatch.Results.CurrentState = event.Dst
 	}
 	return nil
+}
+
+// applyRateLimit applies rate limiting for the SMS batch
+func (sm *StateMachine) applyRateLimit(ctx context.Context) error {
+	ec := sm.EventCoordinator.(*EventCoordinator)
+	return ec.rateLimiter.ApplyRateLimit(ctx, sm.SmsBatch)
 }
 
 // SetDefaultSmsBatchParams sets default parameters for the SMS batch if they are not already set

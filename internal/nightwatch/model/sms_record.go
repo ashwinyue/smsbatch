@@ -44,6 +44,7 @@ type SmsRecordBatch struct {
 
 // SmsRecordQuery represents query parameters for SMS records
 type SmsRecordQuery struct {
+	ID               int64      `json:"id,omitempty"`
 	BatchID          string     `json:"batch_id,omitempty"`
 	TableStorageName string     `json:"table_storage_name,omitempty"`
 	Status           string     `json:"status,omitempty"`

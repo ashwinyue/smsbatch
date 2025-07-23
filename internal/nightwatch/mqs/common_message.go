@@ -4,10 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/provider"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
+	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -15,13 +20,37 @@ import (
 type CommonMessageConsumer struct {
 	ctx       context.Context
 	providers *provider.ProviderFactory
+	store     types.DataStore
+	idt       types.IdempotentChecker
+	logger    types.HistoryLogger
+}
+
+// CommonMessageHandler provides shared functionality for message processing
+type CommonMessageHandler struct {
+	ctx               context.Context
+	store             store.Store
+	idempotentChecker types.IdempotentChecker
+	historyLogger     types.HistoryLogger
 }
 
 // NewCommonMessageConsumer creates a new common message consumer
-func NewCommonMessageConsumer(ctx context.Context, providers *provider.ProviderFactory) *CommonMessageConsumer {
+func NewCommonMessageConsumer(ctx context.Context, providers *provider.ProviderFactory, store types.DataStore, idt types.IdempotentChecker, logger types.HistoryLogger) *CommonMessageConsumer {
 	return &CommonMessageConsumer{
 		ctx:       ctx,
 		providers: providers,
+		store:     store,
+		idt:       idt,
+		logger:    logger,
+	}
+}
+
+// NewCommonMessageHandler creates a new common message handler
+func NewCommonMessageHandler(ctx context.Context, store store.Store, idempotentChecker types.IdempotentChecker, historyLogger types.HistoryLogger) *CommonMessageHandler {
+	return &CommonMessageHandler{
+		ctx:               ctx,
+		store:             store,
+		idempotentChecker: idempotentChecker,
+		historyLogger:     historyLogger,
 	}
 }
 
@@ -47,26 +76,32 @@ func (c *CommonMessageConsumer) Consume(elem any) error {
 
 // handleSmsRequest processes the SMS request
 func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *types.TemplateMsgRequest) error {
-	// TODO: Add idempotent check
-	// if !c.idt.Check(ctx, msg.RequestId) {
-	//     log.Errorw("Idempotent token check failed", "error", "idempotent token is invalid")
-	//     return errors.New("idempotent token is invalid")
-	// }
+	// 幂等性检查
+	isValid, err := c.idt.Check(ctx, msg.RequestId)
+	if err != nil {
+		log.Errorw("Idempotent token check error", "request_id", msg.RequestId, "error", err)
+		return err
+	}
+	if !isValid {
+		log.Errorw("Idempotent token check failed", "request_id", msg.RequestId)
+		return errors.New("idempotent token is invalid")
+	}
 
-	// TODO: Add history record creation
-	// historyM := model.HistoryM{
-	//     Mobile:            msg.PhoneNumber,
-	//     SendTime:          time.Now(),
-	//     Content:           msg.Content,
-	//     MessageTemplateID: msg.TemplateCode,
-	// }
+	// 创建历史记录
+	historyM := model.HistoryM{
+		UserID:    "system", // 默认用户ID
+		Action:    "send_sms",
+		Resource:  msg.PhoneNumber,
+		Details:   fmt.Sprintf("Template: %s, Content: %s", msg.TemplateCode, msg.Content),
+		CreatedAt: time.Now(),
+	}
 
 	successful := false
 	var lastError error
 
 	for _, providerName := range msg.Providers {
 		log.Infow("Attempting to use provider", "provider", providerName)
-		
+
 		// Get provider instance from factory
 		providerIns, err := c.providers.GetSMSTemplateProvider(types.ProviderType(providerName))
 		if err != nil {
@@ -74,7 +109,7 @@ func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *types
 			lastError = err
 			continue
 		}
-		
+
 		// Send SMS using the provider
 		ret, err := providerIns.Send(ctx, msg)
 		if err != nil {
@@ -82,13 +117,13 @@ func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *types
 			lastError = err
 			continue
 		}
-		
-		log.Infow("SMS sent successfully", 
-			"provider", providerName, 
+
+		log.Infow("SMS sent successfully",
+			"provider", providerName,
 			"phone", msg.PhoneNumber,
 			"biz_id", ret.BizId,
 			"code", ret.Code)
-		
+
 		successful = true
 		break
 	}
@@ -100,8 +135,11 @@ func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *types
 		return errors.New("failed to send SMS with all providers")
 	}
 
-	// TODO: Add history writer integration
-	// c.logger.WriterHistory(&historyM)
+	// 写入历史记录
+	if err := c.logger.WriteHistory(ctx, historyM.UserID, historyM.Action, historyM.Resource, historyM.Details); err != nil {
+		log.Errorw("Failed to write history record", "error", err, "phone", msg.PhoneNumber)
+		// 历史记录写入失败不影响主流程
+	}
 
 	return nil
 }

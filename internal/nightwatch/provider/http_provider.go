@@ -3,9 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/client"
 	"time"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/client"
 	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	"github.com/go-resty/resty/v2"
@@ -49,8 +49,8 @@ func (h *HTTPProvider) Type() types.ProviderType {
 
 // Send sends SMS via HTTP API
 func (h *HTTPProvider) Send(ctx context.Context, request *types.TemplateMsgRequest) (*types.SendResult, error) {
-	log.Infow("Sending SMS via HTTP provider", 
-		"provider", h.providerType, 
+	log.Infow("Sending SMS via HTTP provider",
+		"provider", h.providerType,
 		"phone", request.PhoneNumber,
 		"template", request.TemplateCode)
 
@@ -65,15 +65,15 @@ func (h *HTTPProvider) Send(ctx context.Context, request *types.TemplateMsgReque
 		Post(h.config.BaseURL + "/send")
 
 	if err != nil {
-		log.Errorw("Failed to send HTTP request", 
-			"provider", h.providerType, 
+		log.Errorw("Failed to send HTTP request",
+			"provider", h.providerType,
 			"error", err)
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 
 	if resp.StatusCode() >= 400 {
-		log.Errorw("HTTP request returned error status", 
-			"provider", h.providerType, 
+		log.Errorw("HTTP request returned error status",
+			"provider", h.providerType,
 			"status_code", resp.StatusCode(),
 			"response", string(resp.Body()))
 		return nil, fmt.Errorf("HTTP request failed with status %d", resp.StatusCode())
@@ -91,8 +91,8 @@ func (h *HTTPProvider) Send(ctx context.Context, request *types.TemplateMsgReque
 		}
 	}
 
-	log.Infow("SMS sent successfully via HTTP provider", 
-		"provider", h.providerType, 
+	log.Infow("SMS sent successfully via HTTP provider",
+		"provider", h.providerType,
 		"biz_id", result.BizId,
 		"code", result.Code)
 
@@ -111,17 +111,17 @@ func (h *HTTPProvider) preparePayload(request *types.TemplateMsgRequest) map[str
 		}
 	case types.ProviderWE:
 		return map[string]interface{}{
-			"mobile":       request.PhoneNumber,
-			"content":      request.Content,
-			"template_id":  request.TemplateCode,
-			"params":       request.Params,
+			"mobile":      request.PhoneNumber,
+			"content":     request.Content,
+			"template_id": request.TemplateCode,
+			"params":      request.Params,
 		}
 	case types.ProviderXSXX:
 		return map[string]interface{}{
-			"phone":        request.PhoneNumber,
-			"message":      request.Content,
-			"template":     request.TemplateCode,
-			"variables":    request.Params,
+			"phone":     request.PhoneNumber,
+			"message":   request.Content,
+			"template":  request.TemplateCode,
+			"variables": request.Params,
 		}
 	default:
 		// Generic payload format

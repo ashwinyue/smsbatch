@@ -30,7 +30,10 @@ var (
 	S *datastore
 )
 
-// IStore 定义了 Store 层需要实现的方法.
+// Store is an alias for IStore to maintain compatibility
+type Store = IStore
+
+// IStore 定义了 store 层需要实现的方法.
 type IStore interface {
 	// DB 返回 Store 层的 *gorm.DB 实例，在少数场景下会被用到.
 	DB(ctx context.Context, wheres ...where.Where) *gorm.DB

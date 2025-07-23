@@ -64,7 +64,7 @@ func (p *BatchEventPublisher) PublishBatchRequest(ctx context.Context, req *Batc
 }
 
 // PublishBatchStatusUpdate publishes a batch status update event
-func (p *BatchEventPublisher) PublishBatchStatusUpdate(ctx context.Context, req *BatchStatusUpdateRequest) error {
+func (p *BatchEventPublisher) PublishBatchStatusUpdate(ctx context.Context, req *BatchStatusUpdate) error {
 	if req.RequestID == "" {
 		req.RequestID = uuid.New().String()
 	}
@@ -102,7 +102,7 @@ func (p *BatchEventPublisher) PublishBatchStatusUpdate(ctx context.Context, req 
 }
 
 // PublishBatchOperation publishes a batch operation command
-func (p *BatchEventPublisher) PublishBatchOperation(ctx context.Context, req *BatchOperationRequest) error {
+func (p *BatchEventPublisher) PublishBatchOperation(ctx context.Context, req *BatchOperationCommand) error {
 	if req.RequestID == "" {
 		req.RequestID = uuid.New().String()
 	}
@@ -160,7 +160,7 @@ func (p *BatchEventPublisher) PublishSmsBatchCreated(ctx context.Context, batchI
 
 // PublishSmsBatchStatusChanged publishes an SMS batch status change event
 func (p *BatchEventPublisher) PublishSmsBatchStatusChanged(ctx context.Context, batchID, status, phase string, progress float64, processed, success, failed int64) error {
-	req := &BatchStatusUpdateRequest{
+	req := &BatchStatusUpdate{
 		BatchID:      batchID,
 		Status:       status,
 		CurrentPhase: phase,

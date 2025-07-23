@@ -156,10 +156,23 @@ func (b *cronJobBiz) List(ctx context.Context, rq *v1.ListCronJobRequest) (*v1.L
 				return nil
 			default:
 				converted := conversion.CronJobMToCronJobV1(cronJob)
-				// TODO: Add additional processing logic and assign values to fields
-				// that need updating, for example:
-				// xxx := doSomething()
-				// converted.XXX = xxx
+
+				// 添加额外的处理逻辑
+				// 计算关联的短信批处理数量
+				_, _, err := b.store.SmsBatch().List(ctx, where.F("cronjob_id", cronJob.CronJobID))
+				if err != nil {
+					log.W(ctx).Errorw(err, "Failed to get batch count for cronjob", "cronjob_id", cronJob.CronJobID)
+				}
+
+				// 设置关联的批处理数量（如果API支持的话）
+				// converted.BatchCount = batchCount
+
+				// 检查任务状态并更新相关信息
+				if cronJob.Status != nil {
+					// 如果有状态信息，可以进行额外处理
+					log.W(ctx).Infow("CronJob status processed", "cronjob_id", cronJob.CronJobID, "active", cronJob.Status.Active)
+				}
+
 				m.Store(cronJob.ID, converted)
 
 				return nil

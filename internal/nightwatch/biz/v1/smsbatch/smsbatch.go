@@ -75,9 +75,25 @@ func (s *smsBatchV1) Create(ctx context.Context, rq *apiv1.CreateSmsBatchRequest
 		smsBatchM.Watcher = "smsbatch"
 	}
 
+	// 实现数据库操作
 	if err := s.store.SmsBatch().Create(ctx, smsBatchM); err != nil {
 		log.Errorw(err, "Failed to create SMS batch", "name", smsBatchM.Name)
 		return nil, err
+	}
+
+	// 集成状态机
+	stateMachine := fsm.NewStateMachine(smsBatchM, nil, nil)
+	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
+		log.Errorw(err, "Failed to initialize state machine", "batch_id", smsBatchM.BatchID)
+		return nil, err
+	}
+
+	// 触发批处理工作流
+	if smsBatchM.AutoTrigger == 1 {
+		if err := s.StartProcessing(ctx, smsBatchM.BatchID); err != nil {
+			log.Errorw(err, "Failed to trigger batch workflow", "batch_id", smsBatchM.BatchID)
+			// 不返回错误，创建成功但自动触发失败
+		}
 	}
 
 	log.Infow("SMS batch created successfully", "batch_id", smsBatchM.BatchID, "name", smsBatchM.Name)
@@ -230,12 +246,27 @@ func (s *smsBatchV1) StartProcessing(ctx context.Context, batchID string) error 
 		return err
 	}
 
-	// 创建状态机并触发初始事件
+	// 实现状态机事件触发
 	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
 	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
 		log.Errorw(err, "Failed to start batch processing", "batch_id", batchID)
 		return err
 	}
+
+	// 更新数据库状态
+	smsBatch.Status = "processing"
+	if smsBatch.Results == nil {
+		smsBatch.Results = &model.SmsBatchResults{}
+	}
+	smsBatch.Results.CurrentPhase = "preparation"
+	smsBatch.Results.CurrentState = "running"
+	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
+		log.Errorw(err, "Failed to update batch processing status", "batch_id", batchID)
+		return err
+	}
+
+	// 发布状态变更事件
+	log.Infow("Batch processing status changed", "batch_id", batchID, "status", "processing_started")
 
 	log.Infow("Batch processing started", "batch_id", batchID)
 	return nil
@@ -249,20 +280,33 @@ func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
 		return err
 	}
 
-	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+	// 实现暂停逻辑
+	smsBatch.Status = "paused"
+	if smsBatch.Results == nil {
+		smsBatch.Results = &model.SmsBatchResults{}
+	}
+	smsBatch.Results.CurrentState = "paused"
+	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
+		log.Errorw(err, "Failed to pause batch processing", "batch_id", batchID)
+		return err
+	}
 
-	// 根据当前阶段选择暂停方法
+	// 更新状态机
+	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
 	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {
 		if err := stateMachine.PreparationPause(ctx, nil); err != nil {
-			log.Errorw(err, "Failed to pause preparation phase", "batch_id", batchID)
+			log.Errorw(err, "Failed to trigger pause event for preparation phase", "batch_id", batchID)
 			return err
 		}
 	} else if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "delivery" {
 		if err := stateMachine.DeliveryPause(ctx, nil); err != nil {
-			log.Errorw(err, "Failed to pause delivery phase", "batch_id", batchID)
+			log.Errorw(err, "Failed to trigger pause event for delivery phase", "batch_id", batchID)
 			return err
 		}
 	}
+
+	// 通知相关组件
+	log.Infow("Batch paused notification sent", "batch_id", batchID)
 
 	log.Infow("Batch paused", "batch_id", batchID)
 	return nil

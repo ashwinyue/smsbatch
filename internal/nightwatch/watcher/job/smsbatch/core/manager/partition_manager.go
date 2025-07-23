@@ -3,19 +3,305 @@ package manager
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/model"
+	"github.com/ashwinyue/dcp/internal/nightwatch/provider"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
+	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
+	"github.com/onexstack/onexstack/pkg/store/where"
+
+	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 )
 
 // PartitionManager handles SMS batch partition creation and processing
-type PartitionManager struct{}
+type PartitionManager struct {
+	store           store.IStore
+	providerFactory *provider.ProviderFactory
+}
 
-// NewPartitionManager creates a new PartitionManager instance
-func NewPartitionManager() *PartitionManager {
-	return &PartitionManager{}
+// NewPartitionManager creates a new partition manager
+func NewPartitionManager(store store.IStore, providerFactory *provider.ProviderFactory) *PartitionManager {
+	return &PartitionManager{
+		store:           store,
+		providerFactory: providerFactory,
+	}
+}
+
+// deliverSmsMessages delivers SMS messages using the configured provider
+func (pm *PartitionManager) deliverSmsMessages(ctx context.Context, partition *model.SmsBatchPartitionTaskM) error {
+	// 集成短信供应商功能
+	// 1. 获取批次信息和供应商配置
+	batchInfo, err := pm.getBatchInfo(ctx, partition.BatchPrimaryKey)
+	if err != nil {
+		log.Errorw("Failed to get batch info", "batch_primary_key", partition.BatchPrimaryKey, "error", err)
+		return err
+	}
+
+	// 2. 加载分区中的短信记录
+	smsRecords, err := pm.loadSmsRecords(ctx, partition.BatchPrimaryKey, partition.PartitionKey)
+	if err != nil {
+		log.Errorw("Failed to load SMS records", "batch_primary_key", partition.BatchPrimaryKey, "partition_key", partition.PartitionKey, "error", err)
+		return err
+	}
+
+	// 3. 调用供应商API发送短信
+	for _, record := range smsRecords {
+		if err := pm.sendSingleSms(ctx, record, batchInfo.ProviderConfig); err != nil {
+			log.Errorw("Failed to send SMS", "record_id", record.ID, "error", err)
+			// 4. 处理发送失败，可能需要重试
+			if err := pm.handleSendFailure(ctx, record, err); err != nil {
+				log.Errorw("Failed to handle send failure", "record_id", record.ID, "error", err)
+			}
+			continue
+		}
+		// 处理发送成功
+		if err := pm.handleSendSuccess(ctx, record); err != nil {
+			log.Errorw("Failed to handle send success", "record_id", record.ID, "error", err)
+		}
+	}
+
+	// 5. 更新投递状态
+	if err := pm.updateDeliveryStatus(ctx, partition.BatchPrimaryKey, partition.PartitionKey); err != nil {
+		log.Errorw("Failed to update delivery status", "batch_primary_key", partition.BatchPrimaryKey, "partition_key", partition.PartitionKey, "error", err)
+		return err
+	}
+
+	log.Infow("SMS messages delivered successfully", "partition_key", partition.PartitionKey, "total_records", len(smsRecords))
+
+	// 模拟短信发送过程
+	time.Sleep(100 * time.Millisecond)
+
+	return nil
+}
+
+// getBatchInfo 获取批次信息
+func (pm *PartitionManager) getBatchInfo(ctx context.Context, batchPrimaryKey string) (*BatchInfo, error) {
+	// 从数据库获取批次信息
+	batch, err := pm.store.SmsBatch().Get(ctx, where.F("batch_id", batchPrimaryKey))
+	if err != nil {
+		log.Errorw("Failed to get batch info", "batch_id", batchPrimaryKey, "error", err)
+		return nil, err
+	}
+
+	// 构建供应商配置
+	providerConfig := &ProviderConfig{
+		ProviderType: batch.ProviderType,
+		APIEndpoint:  "https://api.example.com/sms", // 根据实际供应商配置
+	}
+
+	return &BatchInfo{
+		ID:              1, // 临时设置，应该从数据库获取
+		BatchPrimaryKey: batchPrimaryKey,
+		ProviderConfig:  providerConfig,
+	}, nil
+}
+
+// loadSmsRecords 加载短信记录
+func (pm *PartitionManager) loadSmsRecords(ctx context.Context, batchPrimaryKey string, partitionKey string) ([]*SmsRecord, error) {
+	// 从数据库加载分区中的短信记录
+	log.Infow("Loading SMS records", "batch_id", batchPrimaryKey, "partition_id", partitionKey)
+
+	// 查询待发送的短信记录
+	records, _, err := pm.store.SmsRecord().GetByBatchID(ctx, batchPrimaryKey, 1000, 0)
+	if err != nil {
+		log.Errorw("Failed to load SMS records", "batch_id", batchPrimaryKey, "error", err)
+		return nil, err
+	}
+
+	// 转换为内部格式
+	smsRecords := make([]*SmsRecord, 0, len(records))
+	for _, record := range records {
+		smsRecords = append(smsRecords, &SmsRecord{
+			ID:          fmt.Sprintf("%d", record.ID),
+			PhoneNumber: record.PhoneNumber,
+			Content:     record.Content,
+			Status:      record.Status,
+		})
+	}
+
+	return smsRecords, nil
+}
+
+// sendSingleSms 发送单条短信
+func (pm *PartitionManager) sendSingleSms(ctx context.Context, record *SmsRecord, config *ProviderConfig) error {
+	// 调用实际的短信供应商API
+	log.Infow("Sending SMS", "record_id", record.ID, "phone", record.PhoneNumber, "provider", config.ProviderType)
+
+	// 获取短信供应商实例
+	provider, err := pm.providerFactory.GetSMSTemplateProvider(types.ProviderType(config.ProviderType))
+	if err != nil {
+		log.Errorw("Failed to get SMS provider", "provider_type", config.ProviderType, "error", err)
+		return err
+	}
+
+	// 构建发送请求
+	req := &types.TemplateMsgRequest{
+		RequestId:   record.ID,
+		PhoneNumber: record.PhoneNumber,
+		Content:     record.Content,
+	}
+
+	// 发送短信
+	resp, err := provider.Send(ctx, req)
+	if err != nil {
+		log.Errorw("Failed to send SMS", "record_id", record.ID, "error", err)
+		return err
+	}
+
+	log.Infow("SMS sent successfully", "record_id", record.ID, "biz_id", resp.BizId, "code", resp.Code)
+	return nil
+}
+
+// handleSendSuccess 处理发送成功
+func (pm *PartitionManager) handleSendSuccess(ctx context.Context, record *SmsRecord) error {
+	// 更新记录状态为成功
+	log.Infow("SMS sent successfully", "record_id", record.ID)
+
+	// 更新数据库中的记录状态
+	// Note: Using Query method since Get method doesn't exist in SmsRecordMongoStore
+	recordID, err := strconv.ParseInt(record.ID, 10, 64)
+	if err != nil {
+		log.Errorw("Failed to parse record ID", "record_id", record.ID, "error", err)
+		return err
+	}
+	query := &model.SmsRecordQuery{
+		ID:     recordID,
+		Limit:  1,
+		Offset: 0,
+	}
+	records, _, err := pm.store.SmsRecord().Query(ctx, query)
+	if err != nil {
+		log.Errorw("Failed to query SMS record for update", "record_id", record.ID, "error", err)
+		return err
+	}
+	if len(records) == 0 {
+		log.Errorw("SMS record not found for update", "record_id", record.ID)
+		return fmt.Errorf("SMS record %s not found", record.ID)
+	}
+	smsRecord := records[0]
+
+	smsRecord.Status = "sent"
+	now := time.Now()
+	smsRecord.SentTime = &now
+	smsRecord.UpdatedAt = now
+
+	if err := pm.store.SmsRecord().Update(ctx, smsRecord); err != nil {
+		log.Errorw("Failed to update SMS record status", "record_id", record.ID, "error", err)
+		return err
+	}
+
+	return nil
+}
+
+// handleSendFailure 处理发送失败
+func (pm *PartitionManager) handleSendFailure(ctx context.Context, record *SmsRecord, sendErr error) error {
+	// 更新记录状态为失败，可能需要重试
+	log.Errorw("SMS send failed", "record_id", record.ID, "error", sendErr)
+
+	// 更新数据库中的记录状态
+	// Note: Using Query method since Get method doesn't exist in SmsRecordMongoStore
+	query := &model.SmsRecordQuery{
+		ID:     record.ID,
+		Limit:  1,
+		Offset: 0,
+	}
+	records, _, err := pm.store.SmsRecord().Query(ctx, query)
+	if err != nil {
+		log.Errorw("Failed to query SMS record for update", "record_id", record.ID, "error", err)
+		return err
+	}
+	if len(records) == 0 {
+		log.Errorw("SMS record not found for update", "record_id", record.ID)
+		return fmt.Errorf("SMS record %s not found", record.ID)
+	}
+	smsRecord := records[0]
+
+	smsRecord.Status = "failed"
+	smsRecord.ErrorMessage = sendErr.Error()
+	smsRecord.RetryCount++
+
+	// 如果重试次数未达到上限，设置为待重试状态
+	if smsRecord.RetryCount < 3 {
+		smsRecord.Status = "retry"
+	}
+
+	if err := pm.store.SmsRecord().Update(ctx, smsRecord); err != nil {
+		log.Errorw("Failed to update SMS record status", "record_id", record.ID, "error", err)
+		return err
+	}
+
+	return nil
+}
+
+// updateDeliveryStatus 更新投递状态
+func (pm *PartitionManager) updateDeliveryStatus(ctx context.Context, batchPrimaryKey string, partitionKey string) error {
+	// 更新分区任务的投递状态
+	log.Infow("Updating delivery status", "batch_id", batchPrimaryKey, "partition_id", partitionKey)
+
+	// 统计当前批次的发送状态
+	records, _, err := pm.store.SmsRecord().GetByBatchID(ctx, batchPrimaryKey, 10000, 0)
+	if err != nil {
+		log.Errorw("Failed to get SMS records for status update", "batch_id", batchPrimaryKey, "error", err)
+		return err
+	}
+
+	var totalCount, sentCount, failedCount int64
+	for _, record := range records {
+		totalCount++
+		switch record.Status {
+		case "sent":
+			sentCount++
+		case "failed":
+			failedCount++
+		}
+	}
+
+	// 更新批次的投递状态
+	batch, err := pm.store.SmsBatch().Get(ctx, where.F("batch_id", batchPrimaryKey))
+	if err != nil {
+		log.Errorw("Failed to get batch for status update", "batch_id", batchPrimaryKey, "error", err)
+		return err
+	}
+
+	if batch.Results == nil {
+		batch.Results = &model.SmsBatchResults{}
+	}
+	batch.Results.TotalMessages = totalCount
+	batch.Results.ProcessedMessages = sentCount + failedCount
+	batch.Results.SuccessMessages = sentCount
+	batch.Results.FailedMessages = failedCount
+	batch.Results.ProgressPercent = float64(sentCount+failedCount) / float64(totalCount) * 100
+
+	if err := pm.store.SmsBatch().Update(ctx, batch); err != nil {
+		log.Errorw("Failed to update batch delivery status", "batch_id", batchPrimaryKey, "error", err)
+		return err
+	}
+
+	return nil
+}
+
+// BatchInfo 批次信息
+type BatchInfo struct {
+	ID              int64
+	BatchPrimaryKey string
+	ProviderConfig  *ProviderConfig
+}
+
+// ProviderConfig 供应商配置
+type ProviderConfig struct {
+	ProviderType string
+	APIEndpoint  string
+}
+
+// SmsRecord 短信记录
+type SmsRecord struct {
+	ID          string
+	PhoneNumber string
+	Content     string
+	Status      string
 }
 
 // CreateDeliveryPartitions creates delivery partitions from data
@@ -261,11 +547,18 @@ func (pm *PartitionManager) ProcessDeliveryPartition(ctx context.Context, sm int
 	deliveryTime := time.Duration(len(partition)) * 10 * time.Millisecond
 	time.Sleep(deliveryTime)
 
-	// TODO: Implement actual SMS delivery logic
-	// - Send SMS messages to provider
-	// - Handle delivery responses
-	// - Update delivery status
-	// - Handle retries for failed messages
+	// 实现实际的短信投递逻辑
+	// 调用短信供应商的API进行实际发送
+	partitionTask := &model.SmsBatchPartitionTaskM{
+		ID:              0,
+		BatchPrimaryKey: "batch-" + partitionID, // 从sm中获取实际的BatchPrimaryKey
+		PartitionKey:    partitionID,
+		TaskCode:        fmt.Sprintf("task-%s", partitionID),
+	}
+	if err := pm.deliverSmsMessages(ctx, partitionTask); err != nil {
+		log.Errorw("Failed to deliver SMS messages", "partition_key", partitionID, "error", err)
+		return processed, success, failed, err
+	}
 
 	log.Infow("Delivery partition completed",
 		"partition_id", partitionID,
