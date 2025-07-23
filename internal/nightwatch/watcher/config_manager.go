@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/onexstack/onexstack/pkg/db"
-	"github.com/onexstack/onexstack/pkg/storage/minio"
+	"gorm.io/gorm"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
+	"github.com/ashwinyue/dcp/internal/pkg/client/minio"
 )
 
 // ConfigManager manages configuration for all watchers
@@ -70,7 +70,7 @@ func (cm *ConfigManager) GetStore() store.IStore {
 }
 
 // GetDB returns the database instance
-func (cm *ConfigManager) GetDB() *db.MySQLOptions {
+func (cm *ConfigManager) GetDB() *gorm.DB {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 	if cm.aggregateConfig == nil {
@@ -80,7 +80,7 @@ func (cm *ConfigManager) GetDB() *db.MySQLOptions {
 }
 
 // GetMinio returns the Minio client
-func (cm *ConfigManager) GetMinio() *minio.Options {
+func (cm *ConfigManager) GetMinio() minio.IMinio {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 	if cm.aggregateConfig == nil {
@@ -96,7 +96,7 @@ func (cm *ConfigManager) GetMaxWorkers() int {
 	if cm.aggregateConfig == nil {
 		return 1
 	}
-	return cm.aggregateConfig.UserWatcherMaxWorkers
+	return int(cm.aggregateConfig.UserWatcherMaxWorkers)
 }
 
 // SetRetryConfig sets retry configuration for a specific watcher
@@ -213,8 +213,8 @@ func (cm *ConfigManager) validateRetryConfig(name string, config *RetryConfig) e
 	if config.MaxDelay <= 0 {
 		return fmt.Errorf("invalid max delay for watcher %s: %v", name, config.MaxDelay)
 	}
-	if config.BackoffMultiplier <= 1.0 {
-		return fmt.Errorf("invalid backoff multiplier for watcher %s: %f", name, config.BackoffMultiplier)
+	if config.BackoffFactor <= 1.0 {
+		return fmt.Errorf("invalid backoff factor for watcher %s: %f", name, config.BackoffFactor)
 	}
 	return nil
 }
