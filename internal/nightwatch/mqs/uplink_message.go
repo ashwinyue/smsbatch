@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -218,13 +217,13 @@ func (u *UplinkMessageConsumer) handleComplaint(ctx context.Context, interaction
 // processInteractionContent 处理交互内容的特定逻辑
 func (u *UplinkMessageConsumer) processInteractionContent(ctx context.Context, interaction *model.InteractionM, msg *types.UplinkMsgRequest) error {
 	// 根据消息内容进行特定处理
-	log.Infow("Processing interaction content", "interaction_id", interaction.InteractionID, "content", msg.Content)
+	log.Infow("Processing interaction content", "interaction_id", interaction.ID, "content", msg.Content)
 
 	// 关键词匹配和自动回复逻辑
 	if msg.Content != "" {
 		// 处理退订请求
 		if u.isUnsubscribeKeyword(msg.Content) {
-			log.Infow("Unsubscribe request detected", "interaction_id", interaction.InteractionID, "mobile", msg.PhoneNumber)
+			log.Infow("Unsubscribe request detected", "interaction_id", interaction.ID, "mobile", msg.PhoneNumber)
 			// 处理退订逻辑
 			if err := u.handleUnsubscribe(ctx, msg.PhoneNumber); err != nil {
 				log.Errorw("Failed to handle unsubscribe", "error", err, "mobile", msg.PhoneNumber)
@@ -234,7 +233,7 @@ func (u *UplinkMessageConsumer) processInteractionContent(ctx context.Context, i
 
 		// 处理查询请求
 		if u.isQueryKeyword(msg.Content) {
-			log.Infow("Query request detected", "interaction_id", interaction.InteractionID, "mobile", msg.PhoneNumber)
+			log.Infow("Query request detected", "interaction_id", interaction.ID, "mobile", msg.PhoneNumber)
 			// 处理查询逻辑
 			if err := u.handleQuery(ctx, msg.PhoneNumber, msg.Content); err != nil {
 				log.Errorw("Failed to handle query", "error", err, "mobile", msg.PhoneNumber)
@@ -244,7 +243,7 @@ func (u *UplinkMessageConsumer) processInteractionContent(ctx context.Context, i
 
 		// 处理投诉建议
 		if u.isComplaintKeyword(msg.Content) {
-			log.Infow("Complaint detected", "interaction_id", interaction.InteractionID, "mobile", msg.PhoneNumber)
+			log.Infow("Complaint detected", "interaction_id", interaction.ID, "mobile", msg.PhoneNumber)
 			// 处理投诉逻辑
 			if err := u.handleComplaint(ctx, interaction, msg); err != nil {
 				log.Errorw("Failed to handle complaint", "error", err, "mobile", msg.PhoneNumber)
@@ -253,7 +252,7 @@ func (u *UplinkMessageConsumer) processInteractionContent(ctx context.Context, i
 		}
 
 		// 记录内容处理结果
-		log.Infow("Content processed", "interaction_id", interaction.InteractionID, "processed", true)
+		log.Infow("Content processed", "interaction_id", interaction.ID, "processed", true)
 	}
 
 	return nil

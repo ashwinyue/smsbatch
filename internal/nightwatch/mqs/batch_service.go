@@ -7,6 +7,7 @@ import (
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/message"
 	"github.com/ashwinyue/dcp/internal/nightwatch/queue"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 )
 
@@ -16,6 +17,7 @@ type BatchEventService struct {
 	consumer  *BatchMessageConsumer
 	publisher *BatchEventPublisher
 	kqueue    *queue.KQueue
+	store     store.IStore
 	// 指标统计
 	messagesProcessed int64
 	errorCount        int64
@@ -28,12 +30,16 @@ type BatchEventServiceConfig struct {
 	ConsumerConfig *queue.KafkaConfig         `json:"consumer_config"`
 	Topic          string                     `json:"topic"`
 	ConsumerGroup  string                     `json:"consumer_group"`
+	Store          store.IStore               `json:"-"`
 }
 
 // NewBatchEventService creates a new batch event service
 func NewBatchEventService(ctx context.Context, config *BatchEventServiceConfig) (*BatchEventService, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config cannot be nil")
+	}
+	if config.Store == nil {
+		return nil, fmt.Errorf("store cannot be nil")
 	}
 
 	// Create Kafka sender for publishing
@@ -46,7 +52,7 @@ func NewBatchEventService(ctx context.Context, config *BatchEventServiceConfig) 
 	publisher := NewBatchEventPublisher(kafkaSender, config.Topic)
 
 	// Create consumer
-	consumer := NewBatchMessageConsumer(ctx)
+	consumer := NewBatchMessageConsumer(ctx, config.Store)
 
 	// Create KQueue for consuming messages
 	kqueue, err := queue.NewKQueue(config.ConsumerConfig, consumer)
@@ -59,6 +65,7 @@ func NewBatchEventService(ctx context.Context, config *BatchEventServiceConfig) 
 		consumer:  consumer,
 		publisher: publisher,
 		kqueue:    kqueue,
+		store:     config.Store,
 		startTime: time.Now(),
 	}, nil
 }

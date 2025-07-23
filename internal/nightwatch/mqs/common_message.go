@@ -12,7 +12,6 @@ import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
-	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 )
 

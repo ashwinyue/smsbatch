@@ -10,7 +10,6 @@ import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	"github.com/google/uuid"
-	"github.com/looplab/fsm"
 	"github.com/onexstack/onexstack/pkg/store/where"
 	"github.com/segmentio/kafka-go"
 )
@@ -360,50 +359,50 @@ func (b *BatchMessageConsumer) handleBatchFailure(ctx context.Context, msg *Batc
 
 // pauseBatch pauses the batch processing
 func (b *BatchMessageConsumer) pauseBatch(ctx context.Context, msg *BatchOperationCommand) error {
-	// 暂停批处理并更新状态机
+	// 暂停批处理并更新状态
 	batch, err := b.store.SmsBatch().Get(ctx, where.F("batch_id", msg.BatchID))
 	if err != nil {
 		log.Errorw("Failed to get batch for pausing", "batch_id", msg.BatchID, "error", err)
 		return err
 	}
 
-	stateMachine := fsm.NewStateMachine(batch, nil, nil)
-	if batch.Results != nil && batch.Results.CurrentPhase == "preparation" {
-		if err := stateMachine.PreparationPause(ctx, nil); err != nil {
-			log.Errorw("Failed to pause preparation phase", "batch_id", msg.BatchID, "error", err)
-			return err
-		}
-	} else if batch.Results != nil && batch.Results.CurrentPhase == "delivery" {
-		if err := stateMachine.DeliveryPause(ctx, nil); err != nil {
-			log.Errorw("Failed to pause delivery phase", "batch_id", msg.BatchID, "error", err)
-			return err
-		}
+	// 更新批次状态为暂停
+	batch.Status = "paused"
+	if batch.Results == nil {
+		batch.Results = &model.SmsBatchResults{}
 	}
+	batch.Results.CurrentState = "paused"
+
+	if err := b.store.SmsBatch().Update(ctx, batch); err != nil {
+		log.Errorw("Failed to update batch status to paused", "batch_id", msg.BatchID, "error", err)
+		return err
+	}
+
 	log.Infow("Pausing batch", "batch_id", msg.BatchID, "phase", msg.Phase)
 	return nil
 }
 
 // resumeBatch resumes the batch processing
 func (b *BatchMessageConsumer) resumeBatch(ctx context.Context, msg *BatchOperationCommand) error {
-	// 恢复批处理并更新状态机
+	// 恢复批处理并更新状态
 	batch, err := b.store.SmsBatch().Get(ctx, where.F("batch_id", msg.BatchID))
 	if err != nil {
 		log.Errorw("Failed to get batch for resuming", "batch_id", msg.BatchID, "error", err)
 		return err
 	}
 
-	stateMachine := fsm.NewStateMachine(batch, nil, nil)
-	if batch.Results != nil && batch.Results.CurrentPhase == "preparation" {
-		if err := stateMachine.PreparationResume(ctx, nil); err != nil {
-			log.Errorw("Failed to resume preparation phase", "batch_id", msg.BatchID, "error", err)
-			return err
-		}
-	} else if batch.Results != nil && batch.Results.CurrentPhase == "delivery" {
-		if err := stateMachine.DeliveryResume(ctx, nil); err != nil {
-			log.Errorw("Failed to resume delivery phase", "batch_id", msg.BatchID, "error", err)
-			return err
-		}
+	// 更新批次状态为运行中
+	batch.Status = "running"
+	if batch.Results == nil {
+		batch.Results = &model.SmsBatchResults{}
 	}
+	batch.Results.CurrentState = "running"
+
+	if err := b.store.SmsBatch().Update(ctx, batch); err != nil {
+		log.Errorw("Failed to update batch status to running", "batch_id", msg.BatchID, "error", err)
+		return err
+	}
+
 	log.Infow("Resuming batch", "batch_id", msg.BatchID, "phase", msg.Phase)
 	return nil
 }
@@ -455,12 +454,6 @@ func (b *BatchMessageConsumer) retryBatch(ctx context.Context, msg *BatchOperati
 		return err
 	}
 
-	// 重新初始化状态机
-	stateMachine := fsm.NewStateMachine(batch, nil, nil)
-	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
-		log.Errorw("Failed to reinitialize state machine for retry", "batch_id", msg.BatchID, "error", err)
-		return err
-	}
 	log.Infow("Retrying batch", "batch_id", msg.BatchID, "phase", msg.Phase)
 	return nil
 }

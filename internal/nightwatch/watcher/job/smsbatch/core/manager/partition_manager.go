@@ -3,7 +3,6 @@ package manager
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -115,7 +114,7 @@ func (pm *PartitionManager) loadSmsRecords(ctx context.Context, batchPrimaryKey 
 	smsRecords := make([]*SmsRecord, 0, len(records))
 	for _, record := range records {
 		smsRecords = append(smsRecords, &SmsRecord{
-			ID:          fmt.Sprintf("%d", record.ID),
+			ID:          record.ID,
 			PhoneNumber: record.PhoneNumber,
 			Content:     record.Content,
 			Status:      record.Status,
@@ -139,7 +138,7 @@ func (pm *PartitionManager) sendSingleSms(ctx context.Context, record *SmsRecord
 
 	// 构建发送请求
 	req := &types.TemplateMsgRequest{
-		RequestId:   record.ID,
+		RequestId:   fmt.Sprintf("%d", record.ID),
 		PhoneNumber: record.PhoneNumber,
 		Content:     record.Content,
 	}
@@ -162,13 +161,8 @@ func (pm *PartitionManager) handleSendSuccess(ctx context.Context, record *SmsRe
 
 	// 更新数据库中的记录状态
 	// Note: Using Query method since Get method doesn't exist in SmsRecordMongoStore
-	recordID, err := strconv.ParseInt(record.ID, 10, 64)
-	if err != nil {
-		log.Errorw("Failed to parse record ID", "record_id", record.ID, "error", err)
-		return err
-	}
 	query := &model.SmsRecordQuery{
-		ID:     recordID,
+		ID:     record.ID,
 		Limit:  1,
 		Offset: 0,
 	}
@@ -298,7 +292,7 @@ type ProviderConfig struct {
 
 // SmsRecord 短信记录
 type SmsRecord struct {
-	ID          string
+	ID          int64
 	PhoneNumber string
 	Content     string
 	Status      string

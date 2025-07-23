@@ -14,6 +14,36 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+// Mock implementations for demo purposes
+type mockDataStore struct{}
+type mockIdempotentChecker struct{}
+type mockHistoryLogger struct{}
+
+// Implement DataStore interface
+// (empty implementation for demo)
+
+// Implement IdempotentChecker interface
+func (m *mockIdempotentChecker) Check(ctx context.Context, key string) (bool, error) {
+	return true, nil // Always return true for demo
+}
+
+func (m *mockIdempotentChecker) Mark(ctx context.Context, key string) error {
+	return nil // No-op for demo
+}
+
+// Implement HistoryLogger interface
+func (m *mockHistoryLogger) Log(ctx context.Context, entry interface{}) error {
+	return nil // No-op for demo
+}
+
+func (m *mockHistoryLogger) Query(ctx context.Context, filter interface{}) ([]interface{}, error) {
+	return nil, nil // Return empty for demo
+}
+
+func (m *mockHistoryLogger) WriteHistory(ctx context.Context, userID, action, resource, details string) error {
+	return nil // No-op for demo
+}
+
 // IntegrationDemo demonstrates the integration of monster project patterns
 type IntegrationDemo struct {
 	queue  *queue.KQueue
@@ -37,8 +67,13 @@ func NewIntegrationDemo(brokers []string, topic string, groupID string) (*Integr
 	// Initialize provider factory
 	providers := provider.InitializeProviders()
 
+	// Create mock implementations for demo
+	mockStore := &mockDataStore{}
+	mockIdempotent := &mockIdempotentChecker{}
+	mockLogger := &mockHistoryLogger{}
+
 	// Create message consumer
-	consumer := mqs.NewCommonMessageConsumer(ctx, providers)
+	consumer := mqs.NewCommonMessageConsumer(ctx, providers, mockStore, mockIdempotent, mockLogger)
 
 	// Create Kafka queue configuration
 	config := &queue.KafkaConfig{

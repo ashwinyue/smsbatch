@@ -89,7 +89,7 @@ func (s *smsBatchV1) Create(ctx context.Context, rq *apiv1.CreateSmsBatchRequest
 	}
 
 	// 触发批处理工作流
-	if smsBatchM.AutoTrigger == 1 {
+	if smsBatchM.AutoTrigger {
 		if err := s.StartProcessing(ctx, smsBatchM.BatchID); err != nil {
 			log.Errorw(err, "Failed to trigger batch workflow", "batch_id", smsBatchM.BatchID)
 			// 不返回错误，创建成功但自动触发失败
