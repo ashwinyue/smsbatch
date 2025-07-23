@@ -8,7 +8,6 @@ import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/conversion"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	apiv1 "github.com/ashwinyue/dcp/pkg/api/nightwatch/v1"
 	"github.com/onexstack/onexstack/pkg/store/where"
@@ -81,7 +80,7 @@ func (s *smsBatchV1) Create(ctx context.Context, rq *apiv1.CreateSmsBatchRequest
 	}
 
 	// 集成状态机
-	stateMachine := fsm.NewStateMachine(smsBatchM, nil, nil)
+	stateMachine := NewStateMachine(smsBatchM, nil, nil)
 	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
 		log.Errorw("Failed to initialize state machine", "error", err.Error(), "batch_id", smsBatchM.BatchID)
 		return nil, err
@@ -246,7 +245,7 @@ func (s *smsBatchV1) StartProcessing(ctx context.Context, batchID string) error 
 	}
 
 	// 实现状态机事件触发
-	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+	stateMachine := NewStateMachine(smsBatch, nil, nil)
 	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
 		log.Errorw("Failed to start batch processing", "error", err.Error(), "batch_id", batchID)
 		return err
@@ -291,7 +290,7 @@ func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
 	}
 
 	// 更新状态机
-	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+	stateMachine := NewStateMachine(smsBatch, nil, nil)
 	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {
 		if err := stateMachine.PreparationPause(ctx, nil); err != nil {
 			log.Errorw("Failed to trigger pause event for preparation phase", "error", err.Error(), "batch_id", batchID)
@@ -319,7 +318,7 @@ func (s *smsBatchV1) ResumeBatch(ctx context.Context, batchID string) error {
 		return err
 	}
 
-	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
+	stateMachine := NewStateMachine(smsBatch, nil, nil)
 
 	// 根据当前阶段选择恢复方法
 	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {

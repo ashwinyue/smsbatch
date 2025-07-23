@@ -31,8 +31,8 @@ task, err := taskScheduler.ScheduleBatchProcessing(ctx, batchID, scheduleTime)
 
 #### 2. 与 FSM (状态机) 集成
 
-- **位置**: `/internal/nightwatch/watcher/job/smsbatch/core/fsm/`
-- **集成方式**: 直接使用现有的 `StateMachine` 来驱动批处理状态转换
+- **位置**: `/internal/nightwatch/biz/v1/smsbatch/`
+- **集成方式**: 直接使用内置的 `StateMachine` 来驱动批处理状态转换
 - **状态流转**:
   - `StartProcessing` → 触发 `InitialExecute`
   - `PauseBatch` → 调用 `PreparationPause` 或 `DeliveryPause`
@@ -40,8 +40,8 @@ task, err := taskScheduler.ScheduleBatchProcessing(ctx, batchID, scheduleTime)
 
 ```go
 // 示例：启动批处理
-stateMachine := fsm.NewStateMachine(smsBatch, nil)
-err := stateMachine.InitialExecute(ctx)
+stateMachine := NewStateMachine(smsBatch, nil, nil)
+err := stateMachine.InitialExecute(ctx, nil)
 ```
 
 #### 3. 与 Watcher 集成
