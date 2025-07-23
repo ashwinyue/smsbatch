@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/mqs"
+	"github.com/ashwinyue/dcp/internal/nightwatch/provider"
 	"github.com/ashwinyue/dcp/internal/nightwatch/queue"
+	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	"github.com/segmentio/kafka-go"
 )
@@ -32,8 +34,11 @@ func NewIntegrationDemo(brokers []string, topic string, groupID string) (*Integr
 	// Create context
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Initialize provider factory
+	providers := provider.InitializeProviders()
+
 	// Create message consumer
-	consumer := mqs.NewCommonMessageConsumer(ctx)
+	consumer := mqs.NewCommonMessageConsumer(ctx, providers)
 
 	// Create Kafka queue configuration
 	config := &queue.KafkaConfig{
@@ -80,7 +85,7 @@ func (d *IntegrationDemo) Stop() {
 
 // ProduceTemplateMessage produces a template message to Kafka
 func (d *IntegrationDemo) ProduceTemplateMessage(requestID, phoneNumber, content, templateCode string, providers []string) error {
-	msg := &mqs.TemplateMsgRequest{
+	msg := &types.TemplateMsgRequest{
 		RequestId:    requestID,
 		PhoneNumber:  phoneNumber,
 		Content:      content,
@@ -110,7 +115,7 @@ func (d *IntegrationDemo) ProduceTemplateMessage(requestID, phoneNumber, content
 
 // ProduceUplinkMessage produces an uplink message to Kafka
 func (d *IntegrationDemo) ProduceUplinkMessage(requestID, phoneNumber, content, destCode string) error {
-	msg := &mqs.UplinkMsgRequest{
+	msg := &types.UplinkMsgRequest{
 		RequestId:   requestID,
 		PhoneNumber: phoneNumber,
 		Content:     content,

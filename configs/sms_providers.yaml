@@ -1,0 +1,61 @@
+# SMS Provider Configurations
+sms:
+  providers:
+    aliyun:
+      enabled: true
+      type: "http"
+      base_url: "https://dysmsapi.aliyuncs.com"
+      timeout: "30s"
+      retry_count: 3
+      headers:
+        Content-Type: "application/json"
+      credentials:
+        access_key_id: "your_aliyun_access_key_id"
+        access_key_secret: "your_aliyun_access_key_secret"
+        sign_name: "your_aliyun_sign_name"
+        region: "cn-hangzhou"
+    
+    we:
+      enabled: true
+      type: "http"
+      base_url: "https://api.we.com/sms"
+      timeout: "30s"
+      retry_count: 3
+      headers:
+        Content-Type: "application/json"
+        Authorization: "Bearer your_we_token"
+      credentials:
+        api_key: "your_we_api_key"
+        api_secret: "your_we_api_secret"
+    
+    xsxx:
+      enabled: true
+      type: "http"
+      base_url: "https://api.xsxx.com/v1/sms"
+      timeout: "30s"
+      retry_count: 3
+      headers:
+        Content-Type: "application/json"
+        X-API-Key: "your_xsxx_api_key"
+      credentials:
+        username: "your_xsxx_username"
+        password: "your_xsxx_password"
+    
+    dummy:
+      enabled: true
+      type: "dummy"
+      # Dummy provider for testing - no configuration needed
+
+  # Default provider priority order
+  default_providers:
+    - "aliyun"
+    - "we"
+    - "xsxx"
+    - "dummy"
+
+  # Global settings
+  global:
+    max_retry_attempts: 3
+    retry_delay: "1s"
+    timeout: "30s"
+    enable_fallback: true

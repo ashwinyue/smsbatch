@@ -10,6 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/go-playground/validator/v10 v10.20.0
+	github.com/go-resty/resty/v2 v2.16.2
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/gorilla/websocket v1.5.3

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
@@ -25,7 +26,7 @@ func NewUplinkMessageConsumer(ctx context.Context) *UplinkMessageConsumer {
 func (u *UplinkMessageConsumer) Consume(elem any) error {
 	val := elem.(kafka.Message)
 
-	var msg *UplinkMsgRequest
+	var msg *types.UplinkMsgRequest
 	err := json.Unmarshal(val.Value, &msg)
 	if err != nil {
 		log.Errorw("Failed to unmarshal message", "error", err, "value", string(val.Value))
@@ -37,7 +38,7 @@ func (u *UplinkMessageConsumer) Consume(elem any) error {
 }
 
 // handleSmsRequest processes the uplink SMS request
-func (u *UplinkMessageConsumer) handleSmsRequest(ctx context.Context, msg *UplinkMsgRequest) error {
+func (u *UplinkMessageConsumer) handleSmsRequest(ctx context.Context, msg *types.UplinkMsgRequest) error {
 	// TODO: Add idempotent check
 	// if !u.idt.Check(ctx, msg.RequestId) {
 	//     log.Errorw("Idempotent token check failed", "error", "idempotent token is invalid")

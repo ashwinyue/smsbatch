@@ -4,46 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
+	"github.com/ashwinyue/dcp/internal/nightwatch/provider"
+	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	"github.com/segmentio/kafka-go"
 )
 
-// TemplateMsgRequest represents a template message request
-type TemplateMsgRequest struct {
-	RequestId    string   `json:"request_id"`
-	PhoneNumber  string   `json:"phone_number"`
-	Content      string   `json:"content"`
-	TemplateCode string   `json:"template_code"`
-	Providers    []string `json:"providers"`
-}
-
-// UplinkMsgRequest represents an uplink message request
-type UplinkMsgRequest struct {
-	RequestId   string    `json:"request_id"`
-	PhoneNumber string    `json:"phone_number"`
-	Content     string    `json:"content"`
-	DestCode    string    `json:"dest_code"`
-	SendTime    time.Time `json:"send_time"`
-}
-
 // CommonMessageConsumer handles common message consumption
 type CommonMessageConsumer struct {
-	ctx context.Context
+	ctx       context.Context
+	providers *provider.ProviderFactory
 }
 
 // NewCommonMessageConsumer creates a new common message consumer
-func NewCommonMessageConsumer(ctx context.Context) *CommonMessageConsumer {
+func NewCommonMessageConsumer(ctx context.Context, providers *provider.ProviderFactory) *CommonMessageConsumer {
 	return &CommonMessageConsumer{
-		ctx: ctx,
+		ctx:       ctx,
+		providers: providers,
 	}
 }
 
 // Consume processes a Kafka message
 func (c *CommonMessageConsumer) Consume(elem any) error {
 	val := elem.(kafka.Message)
-	var msg *TemplateMsgRequest
+	var msg *types.TemplateMsgRequest
 	err := json.Unmarshal(val.Value, &msg)
 	if err != nil {
 		log.Errorw("Failed to unmarshal message value", "value", string(val.Value), "error", err)
@@ -61,7 +46,7 @@ func (c *CommonMessageConsumer) Consume(elem any) error {
 }
 
 // handleSmsRequest processes the SMS request
-func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *TemplateMsgRequest) error {
+func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *types.TemplateMsgRequest) error {
 	// TODO: Add idempotent check
 	// if !c.idt.Check(ctx, msg.RequestId) {
 	//     log.Errorw("Idempotent token check failed", "error", "idempotent token is invalid")
@@ -77,23 +62,41 @@ func (c *CommonMessageConsumer) handleSmsRequest(ctx context.Context, msg *Templ
 	// }
 
 	successful := false
+	var lastError error
 
-	for _, provider := range msg.Providers {
-		log.Infow("Attempting to use provider", "provider", provider)
-		// TODO: Add provider factory integration
-		// providerIns, err := c.providers.GetSMSTemplateProvider(types.ProviderType(provider))
-		// if err != nil {
-		//     continue
-		// }
-		// ret, err := providerIns.Send(ctx, msg)
-
-		// Simulate successful processing for now
-		log.Infow("SMS sent successfully (simulated)", "provider", provider, "phone", msg.PhoneNumber)
+	for _, providerName := range msg.Providers {
+		log.Infow("Attempting to use provider", "provider", providerName)
+		
+		// Get provider instance from factory
+		providerIns, err := c.providers.GetSMSTemplateProvider(types.ProviderType(providerName))
+		if err != nil {
+			log.Errorw("Failed to get provider", "provider", providerName, "error", err)
+			lastError = err
+			continue
+		}
+		
+		// Send SMS using the provider
+		ret, err := providerIns.Send(ctx, msg)
+		if err != nil {
+			log.Errorw("Failed to send SMS", "provider", providerName, "error", err)
+			lastError = err
+			continue
+		}
+		
+		log.Infow("SMS sent successfully", 
+			"provider", providerName, 
+			"phone", msg.PhoneNumber,
+			"biz_id", ret.BizId,
+			"code", ret.Code)
+		
 		successful = true
 		break
 	}
 
 	if !successful {
+		if lastError != nil {
+			return lastError
+		}
 		return errors.New("failed to send SMS with all providers")
 	}
 
