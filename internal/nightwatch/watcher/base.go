@@ -18,93 +18,15 @@ type BaseWatcher struct {
 	db     *gorm.DB
 	config *AggregateConfig
 
-	// Metrics and monitoring
+	// Simple metrics
 	lastRunTime time.Time
 	runCount    int64
 	errorCount  int64
 }
 
-// EnhancedWatcher extends BaseWatcher with monitoring and resilience features
-type EnhancedWatcher struct {
-	BaseWatcher
-	monitor       *WatcherMonitor
-	retryConfig   *RetryConfig
-	circuitBreaker *CircuitBreaker
-	watcherName   string
-}
-
-// BaseWatcher provides common functionality but doesn't implement the full Watcher interface
-// Individual watchers should embed BaseWatcher and implement the Run() and Spec() methods
-
-// NewEnhancedWatcher creates a new enhanced watcher
-func NewEnhancedWatcher(name string) *EnhancedWatcher {
-	return &EnhancedWatcher{
-		watcherName: name,
-	}
-}
-
-// SetMonitor implements WantsEnhancedFeatures interface
-func (e *EnhancedWatcher) SetMonitor(monitor *WatcherMonitor) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.monitor = monitor
-}
-
-// SetRetryConfig implements WantsEnhancedFeatures interface
-func (e *EnhancedWatcher) SetRetryConfig(config *RetryConfig) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.retryConfig = config
-}
-
-// SetCircuitBreaker implements WantsEnhancedFeatures interface
-func (e *EnhancedWatcher) SetCircuitBreaker(cb *CircuitBreaker) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.circuitBreaker = cb
-}
-
-// Name returns the watcher name
-func (e *EnhancedWatcher) Name() string {
-	return e.watcherName
-}
-
-// RunWithResilience executes the watcher run function with monitoring and resilience
-func (e *EnhancedWatcher) RunWithResilience(ctx context.Context, runFunc func(context.Context) error) {
-	start := time.Now()
-	var err error
-
-	// Execute with circuit breaker if available
-	if e.circuitBreaker != nil {
-		err = e.circuitBreaker.Execute(func() error {
-			// Execute with retry if available
-			if e.retryConfig != nil {
-				return RetryWithBackoff(ctx, e.retryConfig, func() error {
-					return runFunc(ctx)
-				})
-			}
-			return runFunc(ctx)
-		})
-	} else {
-		// Execute with retry if available
-		if e.retryConfig != nil {
-			err = RetryWithBackoff(ctx, e.retryConfig, func() error {
-				return runFunc(ctx)
-			})
-		} else {
-			err = runFunc(ctx)
-		}
-	}
-
-	// Record metrics if monitor is available
-	if e.monitor != nil {
-		e.monitor.RecordRun(e.watcherName, time.Since(start), err)
-	}
-
-	// Update base metrics
-	e.RunWithMetrics(ctx, func(context.Context) error {
-		return err // Just return the error for base metrics
-	})
+// NewBaseWatcher creates a new base watcher
+func NewBaseWatcher() *BaseWatcher {
+	return &BaseWatcher{}
 }
 
 // SetStore implements WantsStore interface

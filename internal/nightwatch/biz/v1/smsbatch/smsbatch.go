@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onexstack/onexstack/pkg/log"
-	"github.com/onexstack/onexstack/pkg/store/where"
-
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/conversion"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
+	"github.com/ashwinyue/dcp/internal/pkg/log"
 	apiv1 "github.com/ashwinyue/dcp/pkg/api/nightwatch/v1"
+	"github.com/onexstack/onexstack/pkg/store/where"
 )
 
 // BatchStatus 批处理状态信息
@@ -77,21 +76,21 @@ func (s *smsBatchV1) Create(ctx context.Context, rq *apiv1.CreateSmsBatchRequest
 
 	// 实现数据库操作
 	if err := s.store.SmsBatch().Create(ctx, smsBatchM); err != nil {
-		log.Errorw(err, "Failed to create SMS batch", "name", smsBatchM.Name)
+		log.Errorw("Failed to create SMS batch", "error", err.Error(), "name", smsBatchM.Name)
 		return nil, err
 	}
 
 	// 集成状态机
 	stateMachine := fsm.NewStateMachine(smsBatchM, nil, nil)
 	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
-		log.Errorw(err, "Failed to initialize state machine", "batch_id", smsBatchM.BatchID)
+		log.Errorw("Failed to initialize state machine", "error", err.Error(), "batch_id", smsBatchM.BatchID)
 		return nil, err
 	}
 
 	// 触发批处理工作流
 	if smsBatchM.AutoTrigger {
 		if err := s.StartProcessing(ctx, smsBatchM.BatchID); err != nil {
-			log.Errorw(err, "Failed to trigger batch workflow", "batch_id", smsBatchM.BatchID)
+			log.Errorw("Failed to trigger batch workflow", "error", err.Error(), "batch_id", smsBatchM.BatchID)
 			// 不返回错误，创建成功但自动触发失败
 		}
 	}
@@ -107,7 +106,7 @@ func (s *smsBatchV1) Update(ctx context.Context, rq *apiv1.UpdateSmsBatchRequest
 	// 获取现有的SMS批次
 	existingBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", rq.BatchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for update", "batch_id", rq.BatchID)
+		log.Errorw("Failed to get SMS batch for update", "error", err.Error(), "batch_id", rq.BatchID)
 		return nil, err
 	}
 
@@ -182,7 +181,7 @@ func (s *smsBatchV1) Update(ctx context.Context, rq *apiv1.UpdateSmsBatchRequest
 	}
 
 	if err := s.store.SmsBatch().Update(ctx, existingBatch); err != nil {
-		log.Errorw(err, "Failed to update SMS batch", "batch_id", rq.BatchID)
+		log.Errorw("Failed to update SMS batch", "error", err.Error(), "batch_id", rq.BatchID)
 		return nil, err
 	}
 
@@ -194,7 +193,7 @@ func (s *smsBatchV1) Update(ctx context.Context, rq *apiv1.UpdateSmsBatchRequest
 func (s *smsBatchV1) Delete(ctx context.Context, rq *apiv1.DeleteSmsBatchRequest) (*apiv1.DeleteSmsBatchResponse, error) {
 	for _, batchID := range rq.BatchIDs {
 		if err := s.store.SmsBatch().Delete(ctx, where.F("batch_id", batchID)); err != nil {
-			log.Errorw(err, "Failed to delete SMS batch", "batch_id", batchID)
+			log.Errorw("Failed to delete SMS batch", "error", err.Error(), "batch_id", batchID)
 			return nil, fmt.Errorf("failed to delete SMS batch %s: %w", batchID, err)
 		}
 		log.Infow("SMS batch deleted successfully", "batch_id", batchID)
@@ -206,7 +205,7 @@ func (s *smsBatchV1) Delete(ctx context.Context, rq *apiv1.DeleteSmsBatchRequest
 func (s *smsBatchV1) Get(ctx context.Context, rq *apiv1.GetSmsBatchRequest) (*apiv1.GetSmsBatchResponse, error) {
 	smsBatchM, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", rq.BatchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch", "batch_id", rq.BatchID)
+		log.Errorw("Failed to get SMS batch", "error", err.Error(), "batch_id", rq.BatchID)
 		return nil, err
 	}
 
@@ -221,7 +220,7 @@ func (s *smsBatchV1) List(ctx context.Context, rq *apiv1.ListSmsBatchRequest) (*
 	whr := where.T(ctx).P(int(rq.Offset), int(rq.Limit))
 	total, smsBatchMs, err := s.store.SmsBatch().List(ctx, whr)
 	if err != nil {
-		log.Errorw(err, "Failed to list SMS batches")
+		log.Errorw("Failed to list SMS batches", "error", err.Error())
 		return nil, err
 	}
 
@@ -242,14 +241,14 @@ func (s *smsBatchV1) StartProcessing(ctx context.Context, batchID string) error 
 	// 获取批次信息
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for processing", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for processing", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
 	// 实现状态机事件触发
 	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
 	if err := stateMachine.InitialExecute(ctx, nil); err != nil {
-		log.Errorw(err, "Failed to start batch processing", "batch_id", batchID)
+		log.Errorw("Failed to start batch processing", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -261,7 +260,7 @@ func (s *smsBatchV1) StartProcessing(ctx context.Context, batchID string) error 
 	smsBatch.Results.CurrentPhase = "preparation"
 	smsBatch.Results.CurrentState = "running"
 	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
-		log.Errorw(err, "Failed to update batch processing status", "batch_id", batchID)
+		log.Errorw("Failed to update batch processing status", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -276,7 +275,7 @@ func (s *smsBatchV1) StartProcessing(ctx context.Context, batchID string) error 
 func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for pausing", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for pausing", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -287,7 +286,7 @@ func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
 	}
 	smsBatch.Results.CurrentState = "paused"
 	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
-		log.Errorw(err, "Failed to pause batch processing", "batch_id", batchID)
+		log.Errorw("Failed to pause batch processing", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -295,12 +294,12 @@ func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
 	stateMachine := fsm.NewStateMachine(smsBatch, nil, nil)
 	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {
 		if err := stateMachine.PreparationPause(ctx, nil); err != nil {
-			log.Errorw(err, "Failed to trigger pause event for preparation phase", "batch_id", batchID)
+			log.Errorw("Failed to trigger pause event for preparation phase", "error", err.Error(), "batch_id", batchID)
 			return err
 		}
 	} else if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "delivery" {
 		if err := stateMachine.DeliveryPause(ctx, nil); err != nil {
-			log.Errorw(err, "Failed to trigger pause event for delivery phase", "batch_id", batchID)
+			log.Errorw("Failed to trigger pause event for delivery phase", "error", err.Error(), "batch_id", batchID)
 			return err
 		}
 	}
@@ -316,7 +315,7 @@ func (s *smsBatchV1) PauseBatch(ctx context.Context, batchID string) error {
 func (s *smsBatchV1) ResumeBatch(ctx context.Context, batchID string) error {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for resuming", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for resuming", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -325,12 +324,12 @@ func (s *smsBatchV1) ResumeBatch(ctx context.Context, batchID string) error {
 	// 根据当前阶段选择恢复方法
 	if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "preparation" {
 		if err := stateMachine.PreparationResume(ctx, nil); err != nil {
-			log.Errorw(err, "Failed to resume preparation phase", "batch_id", batchID)
+			log.Errorw("Failed to resume preparation phase", "error", err.Error(), "batch_id", batchID)
 			return err
 		}
 	} else if smsBatch.Results != nil && smsBatch.Results.CurrentPhase == "delivery" {
 		if err := stateMachine.DeliveryResume(ctx, nil); err != nil {
-			log.Errorw(err, "Failed to resume delivery phase", "batch_id", batchID)
+			log.Errorw("Failed to resume delivery phase", "error", err.Error(), "batch_id", batchID)
 			return err
 		}
 	}
@@ -343,7 +342,7 @@ func (s *smsBatchV1) ResumeBatch(ctx context.Context, batchID string) error {
 func (s *smsBatchV1) RetryBatch(ctx context.Context, batchID string) error {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for retry", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for retry", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -356,7 +355,7 @@ func (s *smsBatchV1) RetryBatch(ctx context.Context, batchID string) error {
 	smsBatch.Results.RetryCount = smsBatch.Results.RetryCount + 1
 
 	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
-		log.Errorw(err, "Failed to update batch for retry", "batch_id", batchID)
+		log.Errorw("Failed to update batch for retry", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -368,7 +367,7 @@ func (s *smsBatchV1) RetryBatch(ctx context.Context, batchID string) error {
 func (s *smsBatchV1) AbortBatch(ctx context.Context, batchID string) error {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for aborting", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for aborting", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -381,7 +380,7 @@ func (s *smsBatchV1) AbortBatch(ctx context.Context, batchID string) error {
 	smsBatch.Results.CurrentState = "aborted"
 
 	if err := s.store.SmsBatch().Update(ctx, smsBatch); err != nil {
-		log.Errorw(err, "Failed to update batch status to aborted", "batch_id", batchID)
+		log.Errorw("Failed to update batch status to aborted", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 
@@ -393,7 +392,7 @@ func (s *smsBatchV1) AbortBatch(ctx context.Context, batchID string) error {
 func (s *smsBatchV1) GetBatchStatus(ctx context.Context, batchID string) (*BatchStatus, error) {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch status", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch status", "error", err.Error(), "batch_id", batchID)
 		return nil, err
 	}
 
@@ -417,7 +416,7 @@ func (s *smsBatchV1) GetBatchStatus(ctx context.Context, batchID string) (*Batch
 func (s *smsBatchV1) GetBatchProgress(ctx context.Context, batchID string) (*BatchProgress, error) {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for progress", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for progress", "error", err.Error(), "batch_id", batchID)
 		return nil, err
 	}
 
@@ -446,7 +445,7 @@ func (s *smsBatchV1) GetBatchProgress(ctx context.Context, batchID string) (*Bat
 func (s *smsBatchV1) ValidateBatch(ctx context.Context, batchID string) error {
 	smsBatch, err := s.store.SmsBatch().Get(ctx, where.F("batch_id", batchID))
 	if err != nil {
-		log.Errorw(err, "Failed to get SMS batch for validation", "batch_id", batchID)
+		log.Errorw("Failed to get SMS batch for validation", "error", err.Error(), "batch_id", batchID)
 		return err
 	}
 

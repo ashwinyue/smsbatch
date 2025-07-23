@@ -17,19 +17,18 @@ import (
 
 // EnhancedWatcher is an improved version of the cronjob watcher with monitoring and resilience
 type EnhancedWatcher struct {
-	*watcher.EnhancedWatcher
+	*watcher.BaseWatcher
 	jm *manager.JobManager
 }
 
 // Ensure EnhancedWatcher implements required interfaces
 var _ registry.Watcher = (*EnhancedWatcher)(nil)
 var _ watcher.WantsStore = (*EnhancedWatcher)(nil)
-var _ watcher.WantsEnhancedFeatures = (*EnhancedWatcher)(nil)
 
 // NewEnhancedWatcher creates a new enhanced cronjob watcher
 func NewEnhancedWatcher() *EnhancedWatcher {
 	return &EnhancedWatcher{
-		EnhancedWatcher: watcher.NewEnhancedWatcher("enhanced-cronjob"),
+		BaseWatcher: watcher.NewBaseWatcher(),
 	}
 }
 
@@ -37,20 +36,20 @@ func NewEnhancedWatcher() *EnhancedWatcher {
 func (w *EnhancedWatcher) Run() {
 	ctx := context.Background()
 	
-	// Use the enhanced run method with resilience features
-	w.RunWithResilience(ctx, w.runLogic)
+	// Use the base watcher's metrics collection
+	w.RunWithMetrics(ctx, w.runLogic)
 }
 
 // runLogic contains the actual watcher logic
 func (w *EnhancedWatcher) runLogic(ctx context.Context) error {
 	store := w.GetStore()
 	if store == nil {
-		return watcher.NewRetryableError(fmt.Errorf("store not initialized"), false)
+		return fmt.Errorf("store not initialized")
 	}
 
 	_, cronjobs, err := store.CronJob().List(ctx, where.F("suspend", known.JobNonSuspended))
 	if err != nil {
-		return watcher.NewRetryableError(fmt.Errorf("failed to list cronjobs: %w", err), true)
+		return fmt.Errorf("failed to list cronjobs: %w", err)
 	}
 
 	if err := w.removeNonExistentCronJobs(cronjobs); err != nil {
@@ -74,10 +73,7 @@ func (w *EnhancedWatcher) processCronJob(ctx context.Context, cronjob *model.Cro
 
 	// Check if job template is valid
 	if !w.hasValidTemplate(cronjob) {
-		return watcher.NewRetryableError(
-			fmt.Errorf("cronjob %s has no valid template", cronjob.CronJobID),
-			false, // Template issues are not retryable
-		)
+		return fmt.Errorf("cronjob %s has no valid template", cronjob.CronJobID)
 	}
 
 	// Skip if job already exists
@@ -201,5 +197,5 @@ func (j *enhancedSaveJob) createSmsBatch() error {
 // cronJobName and isCronJobMName functions are already defined in watcher.go
 
 func init() {
-	registry.Register("enhanced-cronjob", NewEnhancedWatcher())
+	registry.Register("enhanced-cronjob", &EnhancedWatcher{})
 }

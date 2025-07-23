@@ -13,13 +13,16 @@ import (
 	"github.com/google/wire"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/biz"
+	"github.com/ashwinyue/dcp/internal/nightwatch/messaging"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/validation"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/server"
 )
+
+// ProvideValidationDataStore provides a DataStore implementation for validation
+func ProvideValidationDataStore(store store.IStore) validation.DataStore {
+	return store
+}
 
 func InitializeWebServer(*Config) (server.Server, error) {
 	wire.Build(
@@ -27,23 +30,18 @@ func InitializeWebServer(*Config) (server.Server, error) {
 		wire.Struct(new(ServerConfig), "*"), // * 表示注入全部字段
 		biz.ProviderSet,
 		ProvideStoreWithMongo, // 提供带有MongoDB支持的Store实例
+		ProvideValidationDataStore, // 提供验证器数据存储
 		validation.ProviderSet,
 	)
 	return nil, nil
 }
 
-// ProvideDefaultRateLimiterConfig provides default rate limiter configuration
-func ProvideDefaultRateLimiterConfig() *core.RateLimiterConfig {
-	return core.DefaultRateLimiterConfig()
-}
-
-// InitializeSMSBatchCore 初始化SMS批处理核心组件
-// 使用core包中已有的InitializeEventCoordinator函数
-func InitializeSMSBatchCore(
-	tableStorageService service.TableStorageService,
-	storeInterface store.IStore,
-) (*fsm.EventCoordinator, error) {
-	// 使用默认配置
-	config := ProvideDefaultRateLimiterConfig()
-	return core.InitializeEventCoordinator(tableStorageService, storeInterface, config)
+// InitializeMessagingService 初始化统一消息服务
+func InitializeMessagingService(
+	store store.IStore,
+) (*messaging.UnifiedMessagingService, error) {
+	wire.Build(
+		messaging.ProviderSet,
+	)
+	return nil, nil
 }

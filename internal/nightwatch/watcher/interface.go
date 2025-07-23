@@ -25,11 +25,3 @@ type WantsDB interface {
 	registry.Watcher
 	SetDB(db *gorm.DB)
 }
-
-// WantsEnhancedFeatures defines a function which sets enhanced features for watcher plugins.
-type WantsEnhancedFeatures interface {
-	registry.Watcher
-	SetMonitor(monitor *WatcherMonitor)
-	SetRetryConfig(config *RetryConfig)
-	SetCircuitBreaker(cb *CircuitBreaker)
-}

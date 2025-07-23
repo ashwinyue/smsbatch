@@ -8,11 +8,9 @@ package nightwatch
 
 import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/biz"
+	"github.com/ashwinyue/dcp/internal/nightwatch/messaging"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/validation"
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core"
-	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	"github.com/ashwinyue/dcp/internal/pkg/server"
 )
 
@@ -29,7 +27,8 @@ func InitializeWebServer(config *Config) (server.Server, error) {
 		return nil, err
 	}
 	bizBiz := biz.NewBiz(iStore)
-	validator := validation.New(iStore)
+	dataStore := ProvideValidationDataStore(iStore)
+	validator := validation.New(dataStore)
 	serverConfig := &ServerConfig{
 		cfg: config,
 		biz: bizBiz,
@@ -42,20 +41,18 @@ func InitializeWebServer(config *Config) (server.Server, error) {
 	return serverServer, nil
 }
 
-// wire.go:
-
-// ProvideDefaultRateLimiterConfig provides default rate limiter configuration
-func ProvideDefaultRateLimiterConfig() *core.RateLimiterConfig {
-	return core.DefaultRateLimiterConfig()
+// InitializeMessagingService 初始化统一消息服务
+func InitializeMessagingService(store2 store.IStore) (*messaging.UnifiedMessagingService, error) {
+	unifiedMessagingService, err := messaging.NewUnifiedMessagingServiceWithDefaults(store2)
+	if err != nil {
+		return nil, err
+	}
+	return unifiedMessagingService, nil
 }
 
-// InitializeSMSBatchCore 初始化SMS批处理核心组件
-// 使用core包中已有的InitializeEventCoordinator函数
-func InitializeSMSBatchCore(
-	tableStorageService service.TableStorageService,
-	storeInterface store.IStore,
-) (*fsm.EventCoordinator, error) {
+// wire.go:
 
-	config := ProvideDefaultRateLimiterConfig()
-	return core.InitializeEventCoordinator(tableStorageService, storeInterface, config)
+// ProvideValidationDataStore provides a DataStore implementation for validation
+func ProvideValidationDataStore(store2 store.IStore) validation.DataStore {
+	return store2
 }
