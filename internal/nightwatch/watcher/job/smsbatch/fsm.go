@@ -8,29 +8,26 @@ import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/biz/v1/smsbatch"
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
- 
+
 	fsmutil "github.com/ashwinyue/dcp/internal/pkg/util/fsm"
 )
-
-
-
 
 // NewStateMachine initializes a new StateMachine with the given initial state, watcher, and SMS batch.
 // It configures the FSM with defined events and their corresponding state transitions,
 // as well as callbacks for entering specific states.
 func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM) *smsbatch.StateMachine {
 	// Create table storage service from watcher's store
-	tableStorageService := service.NewTableStorageService(watcher.Store.SmsRecord())
-	
+	tableStorageService := service.NewTableStorageService(watcher.GetStore().SmsRecord())
+
 	// Use Wire dependency injection to create EventCoordinator
 	config := smsbatch.DefaultRateLimiterConfig()
-	eventCoordinator, err := smsbatch.InitializeEventCoordinator(tableStorageService, watcher.Store, config)
+	eventCoordinator, err := smsbatch.InitializeEventCoordinator(tableStorageService, watcher.GetStore(), config)
 	if err != nil {
 		// Log the error and return nil since this function doesn't return an error
 		fmt.Printf("Failed to initialize EventCoordinator with Wire: %v\n", err)
 		return nil
 	}
-	
+
 	sm := smsbatch.NewStateMachine(smsBatch, watcher, tableStorageService)
 	sm.EventCoordinator = eventCoordinator
 

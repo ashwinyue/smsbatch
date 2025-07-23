@@ -54,23 +54,23 @@ func InitializeEventCoordinator(
 ) (*fsm.EventCoordinator, error) {
 	// Create rate limiter
 	rateLimiter := NewRateLimiter(config)
-	
+
 	// Create publisher first (needed by processors)
 	eventPublisher := publisher.NewEventPublisher(nil) // Pass nil for now, can be set later
-	
+
 	// Create partition manager (needed by processors)
 	partitionManager := manager.NewPartitionManager(storeInterface, nil) // Pass nil for provider factory for now
-	
+
 	// Create processors with correct parameters
 	preparationProcessor := processor.NewPreparationProcessor(eventPublisher, partitionManager, tableStorageService)
 	deliveryProcessor := processor.NewDeliveryProcessor(partitionManager, eventPublisher, tableStorageService)
-	
+
 	// Create state manager
 	stateManager := manager.NewStateManager(storeInterface)
-	
+
 	// Create validator
 	validator := fsm.NewValidator()
-	
+
 	// Create and return EventCoordinator
 	return fsm.NewEventCoordinator(
 		preparationProcessor,

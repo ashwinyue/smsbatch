@@ -3,8 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/client"
 	"time"
+
+	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/client"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/types"
 	"github.com/ashwinyue/dcp/internal/pkg/log"

@@ -41,8 +41,6 @@ func (w *WatcherInitializer) Initialize(wc registry.Watcher) {
 	log.Infow("Watcher initialized", "watcher", getWatcherName(wc))
 }
 
-
-
 func getWatcherName(wc registry.Watcher) string {
 	// Try to get name from watcher if it implements a Name() method
 	if named, ok := wc.(interface{ Name() string }); ok {

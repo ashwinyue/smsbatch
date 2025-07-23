@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/message"
-	"github.com/ashwinyue/dcp/pkg/queue"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
+	"github.com/ashwinyue/dcp/pkg/queue"
 )
 
 // BatchEventService manages batch event processing

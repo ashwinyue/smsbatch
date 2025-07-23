@@ -118,13 +118,13 @@ const (
 
 // CircuitBreaker implements a simple circuit breaker pattern
 type CircuitBreaker struct {
-	state         CircuitBreakerState
-	failureCount  int
-	lastFailTime  time.Time
-	successCount  int
-	maxFailures   int
-	timeout       time.Duration
-	maxSuccesses  int
+	state        CircuitBreakerState
+	failureCount int
+	lastFailTime time.Time
+	successCount int
+	maxFailures  int
+	timeout      time.Duration
+	maxSuccesses int
 }
 
 // NewCircuitBreaker creates a new circuit breaker

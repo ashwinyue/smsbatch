@@ -11,8 +11,8 @@ import (
 
 // ValidationError represents a validation error with field information
 type ValidationError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
+	Field   string      `json:"field"`
+	Message string      `json:"message"`
 	Value   interface{} `json:"value,omitempty"`
 }
 
@@ -53,11 +53,11 @@ func (r *ValidationResult) GetErrorMessages() []string {
 // Validator provides validation functionality without storage dependencies
 type Validator struct {
 	// Configuration for validation rules
-	phoneRegex     *regexp.Regexp
-	emailRegex     *regexp.Regexp
-	maxBatchSize   int
-	maxMessageLen  int
-	maxRetryCount  int
+	phoneRegex    *regexp.Regexp
+	emailRegex    *regexp.Regexp
+	maxBatchSize  int
+	maxMessageLen int
+	maxRetryCount int
 }
 
 // NewValidator creates a new validator instance
@@ -232,7 +232,7 @@ func (v *Validator) ValidateBatchSize(size int) *ValidationResult {
 func (v *Validator) isValidCronExpression(expr string) bool {
 	// 简单的cron表达式验证，支持标准5字段和6字段格式
 	expr = strings.TrimSpace(expr)
-	
+
 	// 支持特殊表达式
 	specialExpressions := []string{
 		"@yearly", "@annually", "@monthly", "@weekly", "@daily", "@midnight", "@hourly",
@@ -242,20 +242,20 @@ func (v *Validator) isValidCronExpression(expr string) bool {
 			return true
 		}
 	}
-	
+
 	// 支持 @every 格式
 	if strings.HasPrefix(expr, "@every ") {
 		duration := strings.TrimPrefix(expr, "@every ")
 		_, err := time.ParseDuration(duration)
 		return err == nil
 	}
-	
+
 	// 验证标准cron表达式格式
 	fields := strings.Fields(expr)
 	if len(fields) != 5 && len(fields) != 6 {
 		return false
 	}
-	
+
 	// 这里可以添加更详细的字段验证逻辑
 	return true
 }
@@ -265,7 +265,7 @@ func (v *Validator) isValidSmsBatchStatus(status string) bool {
 	validStatuses := []string{
 		"pending", "processing", "completed", "failed", "cancelled", "paused",
 	}
-	
+
 	for _, validStatus := range validStatuses {
 		if status == validStatus {
 			return true

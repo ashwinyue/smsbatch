@@ -29,7 +29,7 @@ func InitializeWebServer(*Config) (server.Server, error) {
 		wire.NewSet(NewWebServer, wire.FieldsOf(new(*Config), "ServerMode")),
 		wire.Struct(new(ServerConfig), "*"), // * 表示注入全部字段
 		biz.ProviderSet,
-		ProvideStoreWithMongo, // 提供带有MongoDB支持的Store实例
+		ProvideStoreWithMongo,      // 提供带有MongoDB支持的Store实例
 		ProvideValidationDataStore, // 提供验证器数据存储
 		validation.ProviderSet,
 	)

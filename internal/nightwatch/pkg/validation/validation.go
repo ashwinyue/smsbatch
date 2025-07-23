@@ -47,8 +47,6 @@ func New(store DataStore) *Validator {
 	return &Validator{store: store}
 }
 
-
-
 // isValidCronExpression 检查Cron表达式是否有效.
 func isValidCronExpression(cron string) bool {
 	return cronRegex.MatchString(cron)

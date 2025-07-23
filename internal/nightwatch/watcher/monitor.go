@@ -30,14 +30,14 @@ type PerformanceMetrics struct {
 	LastFailureTime time.Time
 
 	// Performance metrics
-	AverageRunTime    time.Duration
-	MinRunTime        time.Duration
-	MaxRunTime        time.Duration
-	TotalRunTime      time.Duration
+	AverageRunTime time.Duration
+	MinRunTime     time.Duration
+	MaxRunTime     time.Duration
+	TotalRunTime   time.Duration
 
 	// Error tracking
 	ConsecutiveFailures int64
-	ErrorRate          float64
+	ErrorRate           float64
 
 	// Resource usage
 	MemoryUsage int64
@@ -51,9 +51,9 @@ type WatcherMonitor struct {
 
 	// Health check configuration
 	maxConsecutiveFailures int64
-	maxErrorRate          float64
-	maxRunTime            time.Duration
-	healthCheckInterval   time.Duration
+	maxErrorRate           float64
+	maxRunTime             time.Duration
+	healthCheckInterval    time.Duration
 
 	// Callbacks
 	onHealthChange func(watcherName string, oldStatus, newStatus HealthStatus)
@@ -64,9 +64,9 @@ func NewWatcherMonitor() *WatcherMonitor {
 	return &WatcherMonitor{
 		metrics:                make(map[string]*PerformanceMetrics),
 		maxConsecutiveFailures: 5,
-		maxErrorRate:          0.2, // 20%
-		maxRunTime:            30 * time.Second,
-		healthCheckInterval:   1 * time.Minute,
+		maxErrorRate:           0.2, // 20%
+		maxRunTime:             30 * time.Second,
+		healthCheckInterval:    1 * time.Minute,
 	}
 }
 

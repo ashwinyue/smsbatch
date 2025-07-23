@@ -14,9 +14,9 @@ import (
 // ConfigManager manages configuration for all watchers
 type ConfigManager struct {
 	mu                    sync.RWMutex
-	aggregateConfig      *AggregateConfig
-	retryConfigs         map[string]*RetryConfig
-	monitorConfigs       map[string]*MonitorConfig
+	aggregateConfig       *AggregateConfig
+	retryConfigs          map[string]*RetryConfig
+	monitorConfigs        map[string]*MonitorConfig
 	circuitBreakerConfigs map[string]*CircuitBreakerConfig
 }
 
@@ -34,20 +34,20 @@ type MonitorConfig struct {
 
 // CircuitBreakerConfig defines circuit breaker configuration
 type CircuitBreakerConfig struct {
-	Enabled           bool          `json:"enabled" yaml:"enabled"`
-	FailureThreshold  int           `json:"failure_threshold" yaml:"failure_threshold"`
-	SuccessThreshold  int           `json:"success_threshold" yaml:"success_threshold"`
-	Timeout           time.Duration `json:"timeout" yaml:"timeout"`
-	MaxRequests       int           `json:"max_requests" yaml:"max_requests"`
-	ResetTimeout      time.Duration `json:"reset_timeout" yaml:"reset_timeout"`
+	Enabled          bool          `json:"enabled" yaml:"enabled"`
+	FailureThreshold int           `json:"failure_threshold" yaml:"failure_threshold"`
+	SuccessThreshold int           `json:"success_threshold" yaml:"success_threshold"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
+	MaxRequests      int           `json:"max_requests" yaml:"max_requests"`
+	ResetTimeout     time.Duration `json:"reset_timeout" yaml:"reset_timeout"`
 }
 
 // NewConfigManager creates a new configuration manager
 func NewConfigManager(aggregateConfig *AggregateConfig) *ConfigManager {
 	return &ConfigManager{
-		aggregateConfig:      aggregateConfig,
-		retryConfigs:         make(map[string]*RetryConfig),
-		monitorConfigs:       make(map[string]*MonitorConfig),
+		aggregateConfig:       aggregateConfig,
+		retryConfigs:          make(map[string]*RetryConfig),
+		monitorConfigs:        make(map[string]*MonitorConfig),
 		circuitBreakerConfigs: make(map[string]*CircuitBreakerConfig),
 	}
 }

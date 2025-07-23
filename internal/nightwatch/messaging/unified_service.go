@@ -14,10 +14,10 @@ import (
 
 // UnifiedMessagingService combines message sending and consuming functionality
 type UnifiedMessagingService struct {
-	ctx     context.Context
-	writer  *kafka.Writer
+	ctx      context.Context
+	writer   *kafka.Writer
 	consumer *queue.KQueue
-	store   store.IStore
+	store    store.IStore
 
 	// Metrics
 	messagesProcessed int64
@@ -27,11 +27,11 @@ type UnifiedMessagingService struct {
 
 // Config holds configuration for the unified messaging service
 type Config struct {
-	KafkaConfig   *KafkaConfig   `json:"kafka_config"`
+	KafkaConfig    *KafkaConfig       `json:"kafka_config"`
 	ConsumerConfig *queue.KafkaConfig `json:"consumer_config"`
-	Topic         string         `json:"topic"`
-	ConsumerGroup string         `json:"consumer_group"`
-	Store         store.IStore   `json:"-"`
+	Topic          string             `json:"topic"`
+	ConsumerGroup  string             `json:"consumer_group"`
+	Store          store.IStore       `json:"-"`
 }
 
 // KafkaConfig holds Kafka producer configuration
