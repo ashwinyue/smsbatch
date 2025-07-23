@@ -6,7 +6,6 @@ import (
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
-	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	jobconditionsutil "github.com/ashwinyue/dcp/internal/pkg/util/jobconditions"
@@ -23,13 +22,10 @@ type StateMachine struct {
 
 // NewStateMachine creates a new StateMachine instance
 func NewStateMachine(smsBatch *model.SmsBatchM, watcher interface{}, tableStorageService service.TableStorageService) *StateMachine {
-	// Extract store from watcher if available
-	var storeInterface store.IStore
-	if w, ok := watcher.(interface{ GetStore() store.IStore }); ok {
-		storeInterface = w.GetStore()
-	}
+	// Create a basic EventCoordinator
+	// Full dependency injection with all processors is handled at the core package level
+	eventCoordinator := &EventCoordinator{}
 
-	eventCoordinator := NewEventCoordinator(tableStorageService, storeInterface)
 	return &StateMachine{
 		SmsBatch:         smsBatch,
 		Watcher:          watcher,
@@ -130,7 +126,7 @@ func (sm *StateMachine) InitialExecute(ctx context.Context, event *fsm.Event) er
 	log.Infow("SMS batch initialized", "batch_id", sm.SmsBatch.BatchID)
 
 	// Set default SMS batch params
-	SetDefaultSmsBatchParams(sm.SmsBatch)
+	setDefaultSmsBatchParams(sm.SmsBatch)
 
 	// Initialize SMS batch results
 	if sm.SmsBatch.Results == nil {
@@ -309,8 +305,8 @@ func (sm *StateMachine) applyRateLimit(ctx context.Context) error {
 	return ec.rateLimiter.ApplyRateLimit(ctx, sm.SmsBatch)
 }
 
-// SetDefaultSmsBatchParams sets default parameters for the SMS batch if they are not already set
-func SetDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
+// setDefaultSmsBatchParams sets default parameters for the SMS batch if they are not already set
+func setDefaultSmsBatchParams(smsBatch *model.SmsBatchM) {
 	if smsBatch.Params == nil {
 		smsBatch.Params = &model.SmsBatchParams{}
 	}

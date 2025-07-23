@@ -6,9 +6,6 @@ import (
 	"go.uber.org/ratelimit"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/mqs"
-	"github.com/ashwinyue/dcp/internal/nightwatch/provider"
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
-	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/manager"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/processor"
 	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/publisher"
@@ -39,25 +36,16 @@ type EventCoordinatorInterface interface {
 // Ensure EventCoordinator implements EventCoordinatorInterface
 var _ EventCoordinatorInterface = (*EventCoordinator)(nil)
 
-// NewEventCoordinator creates a new EventCoordinator instance
-func NewEventCoordinator(tableStorageService service.TableStorageService, storeInterface store.IStore) *EventCoordinator {
-	validator := NewValidator()
-	// Initialize provider factory
-	providerFactory := provider.InitializeProviders()
-	partitionManager := manager.NewPartitionManager(storeInterface, providerFactory)
-	eventPublisher := publisher.NewEventPublisher(nil) // Will be set when watcher is available
-	preparationProcessor := processor.NewPreparationProcessor(eventPublisher, partitionManager, tableStorageService)
-	deliveryProcessor := processor.NewDeliveryProcessor(partitionManager, eventPublisher, tableStorageService)
-
-	// Create StateManager with proper store interface
-	stateManager := manager.NewStateManager(storeInterface)
-
-	// Initialize rate limiter with default rates
-	rateLimiter := &RateLimiter{
-		Preparation: ratelimit.New(10), // 10 requests per second for preparation
-		Delivery:    ratelimit.New(100), // 100 requests per second for delivery
-	}
-
+// NewEventCoordinator creates a new EventCoordinator instance using Wire dependency injection
+func NewEventCoordinator(
+	preparationProcessor *processor.PreparationProcessor,
+	deliveryProcessor *processor.DeliveryProcessor,
+	stateManager *manager.StateManager,
+	eventPublisher *publisher.EventPublisher,
+	validator *Validator,
+	partitionManager *manager.PartitionManager,
+	rateLimiter *RateLimiter,
+) *EventCoordinator {
 	return &EventCoordinator{
 		preparationProcessor: preparationProcessor,
 		deliveryProcessor:    deliveryProcessor,

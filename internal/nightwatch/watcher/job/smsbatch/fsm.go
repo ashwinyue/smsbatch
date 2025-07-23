@@ -1,10 +1,13 @@
 package smsbatch
 
 import (
+	"fmt"
+
 	"github.com/looplab/fsm"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core"
 	corefsm "github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	fsmutil "github.com/ashwinyue/dcp/internal/pkg/util/fsm"
 )
@@ -15,7 +18,21 @@ import (
 func NewStateMachine(initial string, watcher *Watcher, smsBatch *model.SmsBatchM) *corefsm.StateMachine {
 	// Create table storage service from watcher's store
 	tableStorageService := service.NewTableStorageService(watcher.Store.SmsRecord())
-	sm := corefsm.NewStateMachine(smsBatch, watcher, tableStorageService)
+	
+	// Use Wire dependency injection to create EventCoordinator
+	config := core.DefaultRateLimiterConfig()
+	eventCoordinator, err := core.InitializeEventCoordinator(tableStorageService, watcher.Store, config)
+	if err != nil {
+		// Log the error and return nil since this function doesn't return an error
+		fmt.Printf("Failed to initialize EventCoordinator with Wire: %v\n", err)
+		return nil
+	}
+	
+	sm := &corefsm.StateMachine{
+		SmsBatch:         smsBatch,
+		Watcher:          watcher,
+		EventCoordinator: eventCoordinator,
+	}
 
 	// Set the event publisher for the coordinator
 	sm.EventCoordinator.SetEventPublisher(watcher.EventPublisher)

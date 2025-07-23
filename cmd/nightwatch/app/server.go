@@ -79,8 +79,9 @@ The project features include:
 	version.AddFlags(cmd.PersistentFlags())
 
 	// 添加子命令
-	cmd.AddCommand(NewKafkaCommand())
-	cmd.AddCommand(NewMessageCommand())
+
+	
+
 
 	return cmd
 }

@@ -16,6 +16,8 @@ import (
 	"github.com/onexstack/onexstack/pkg/store/where"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
+
+	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/validation"
 )
 
 // ProviderSet 是一个 Wire 的 Provider 集合，用于声明依赖注入的规则.
@@ -47,6 +49,8 @@ type IStore interface {
 	Post() PostStore
 	// ConcretePost ConcretePosts 是一个示例 store 实现，用来演示在 Go 中如何直接与 DB 交互.
 	ConcretePost() ConcretePostStore
+	// Interaction 返回交互记录存储接口
+	Interaction() InteractionStore
 }
 
 // transactionKey 用于在 context.Context 中存储事务上下文的键.
@@ -74,6 +78,9 @@ type datastore struct {
 
 // 确保 datastore 实现了 IStore 接口.
 var _ IStore = (*datastore)(nil)
+
+// 确保 datastore 实现了 validation.DataStore 接口.
+var _ validation.DataStore = (*datastore)(nil)
 
 // NewStore 创建一个 IStore 类型的实例.
 func NewStore(db *gorm.DB) *datastore {
@@ -176,4 +183,9 @@ func (store *datastore) SmsRecord() SmsRecordMongoStore {
 // ConcretePost 返回一个实现了 ConcretePostStore 接口的实例.
 func (store *datastore) ConcretePost() ConcretePostStore {
 	return newConcretePostStore(store)
+}
+
+// Interaction 返回一个实现了 InteractionStore 接口的实例.
+func (store *datastore) Interaction() InteractionStore {
+	return newInteractionStore(store)
 }

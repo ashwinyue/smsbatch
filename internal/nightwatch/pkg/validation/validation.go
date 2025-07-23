@@ -12,16 +12,21 @@ import (
 
 	"github.com/google/wire"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	apiv1 "github.com/ashwinyue/dcp/pkg/api/nightwatch/v1"
 )
+
+// DataStore 定义验证器需要的数据存储接口
+type DataStore interface {
+	// 这里可以定义验证器需要的具体方法
+	// 例如：CheckExists(ctx context.Context, id string) (bool, error)
+}
 
 // Validator 是验证逻辑的实现结构体.
 type Validator struct {
 	// 有些复杂的验证逻辑，可能需要直接查询数据库
 	// 这里只是一个举例，如果验证时，有其他依赖的客户端/服务/资源等，
 	// 都可以一并注入进来
-	store store.IStore
+	store DataStore
 }
 
 // 使用预编译的全局正则表达式，避免重复创建和编译.
@@ -38,14 +43,11 @@ var (
 var ProviderSet = wire.NewSet(New)
 
 // New 创建一个新的 Validator 实例.
-func New(store store.IStore) *Validator {
+func New(store DataStore) *Validator {
 	return &Validator{store: store}
 }
 
-// isValidName 检查名称是否有效.
-func isValidName(name string) bool {
-	return lengthRegex.MatchString(name) && validRegex.MatchString(name)
-}
+
 
 // isValidCronExpression 检查Cron表达式是否有效.
 func isValidCronExpression(cron string) bool {

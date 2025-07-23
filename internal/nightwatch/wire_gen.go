@@ -9,6 +9,10 @@ package nightwatch
 import (
 	"github.com/ashwinyue/dcp/internal/nightwatch/biz"
 	"github.com/ashwinyue/dcp/internal/nightwatch/pkg/validation"
+	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
+	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core"
+	"github.com/ashwinyue/dcp/internal/nightwatch/watcher/job/smsbatch/core/fsm"
 	"github.com/ashwinyue/dcp/internal/pkg/server"
 )
 
@@ -36,4 +40,22 @@ func InitializeWebServer(config *Config) (server.Server, error) {
 		return nil, err
 	}
 	return serverServer, nil
+}
+
+// wire.go:
+
+// ProvideDefaultRateLimiterConfig provides default rate limiter configuration
+func ProvideDefaultRateLimiterConfig() *core.RateLimiterConfig {
+	return core.DefaultRateLimiterConfig()
+}
+
+// InitializeSMSBatchCore 初始化SMS批处理核心组件
+// 使用core包中已有的InitializeEventCoordinator函数
+func InitializeSMSBatchCore(
+	tableStorageService service.TableStorageService,
+	storeInterface store.IStore,
+) (*fsm.EventCoordinator, error) {
+
+	config := ProvideDefaultRateLimiterConfig()
+	return core.InitializeEventCoordinator(tableStorageService, storeInterface, config)
 }

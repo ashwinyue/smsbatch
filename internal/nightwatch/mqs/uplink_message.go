@@ -61,23 +61,16 @@ func (u *UplinkMessageConsumer) handleSmsRequest(ctx context.Context, msg *types
 
 	log.Infow("Checking for existing interaction records for mobile", "mobile", msg.PhoneNumber)
 
-	// 检查是否已存在相同的交互记录 - 暂时跳过此检查
-	// TODO: 实现 Interactions store 后启用此功能
-	/*
-		filter := make(map[string]any)
-		filter["mobile"] = msg.PhoneNumber
-		filter["content"] = msg.Content
-		filter["receive_time"] = msg.SendTime
-		count, _, err := u.store.Interactions().List(ctx, meta.WithFilter(filter))
-		if err != nil {
-			log.Errorw("Failed to check existing interactions", "error", err)
-			return err
-		}
-		if count > 0 {
-			log.Infow("Interaction record already exists for mobile", "mobile", msg.PhoneNumber)
-			return nil // 已存在相同记录，直接返回
-		}
-	*/
+	// 检查是否已存在该手机号的交互记录
+	exists, err := u.store.Interaction().CheckExistsByPhoneNumber(ctx, msg.PhoneNumber)
+	if err != nil {
+		log.Errorw("Failed to check existing interactions", "error", err)
+		return err
+	}
+	if exists {
+		log.Infow("Interaction record already exists for mobile", "mobile", msg.PhoneNumber)
+		return nil // 已存在记录，跳过处理
+	}
 
 	// Create interaction record (simulated)
 	interactionID := uuid.New().String()
@@ -93,14 +86,11 @@ func (u *UplinkMessageConsumer) handleSmsRequest(ctx context.Context, msg *types
 	interactionM.CreatedAt = time.Now()
 	interactionM.UpdatedAt = time.Now()
 
-	// TODO: 实现 Interactions store 后启用此功能
-	/*
-		err = u.store.Interactions().Create(ctx, &interactionM)
-		if err != nil {
-			log.Errorw("Failed to create interaction record", "error", err)
-			return err
-		}
-	*/
+	err = u.store.Interaction().Create(ctx, &interactionM)
+	if err != nil {
+		log.Errorw("Failed to create interaction record", "error", err)
+		return err
+	}
 
 	log.Infow("Interaction record created successfully", "interaction_id", interactionID)
 
