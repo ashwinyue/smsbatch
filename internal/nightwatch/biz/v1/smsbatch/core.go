@@ -4,6 +4,7 @@ import (
 	"github.com/google/wire"
 	"go.uber.org/ratelimit"
 
+	"github.com/ashwinyue/dcp/internal/nightwatch/messaging/sender"
 	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 )
@@ -81,6 +82,7 @@ func (ec *EventCoordinator) SetEventPublisher(mqsPublisher interface{}) {
 
 // CoreProviderSet is the Wire provider set for core components
 var CoreProviderSet = wire.NewSet(
+	sender.ProviderSet,
 	NewPreparationProcessor,
 	NewDeliveryProcessor,
 	NewStateManager,
@@ -92,6 +94,8 @@ var CoreProviderSet = wire.NewSet(
 )
 
 // InitializeEventCoordinator initializes an EventCoordinator with all dependencies
+// This function is now deprecated in favor of Wire dependency injection
+// Use Wire to create EventCoordinator with proper dependency injection
 func InitializeEventCoordinator(
 	tableStorageService service.TableStorageService,
 	storeInterface store.IStore,
@@ -100,8 +104,18 @@ func InitializeEventCoordinator(
 	// Create rate limiter
 	rateLimiter := NewRateLimiter(config)
 
-	// Create publisher first (needed by processors)
-	eventPublisher := NewEventPublisher(nil) // Pass nil for now, can be set later
+	// Create Kafka sender with default config
+	kafkaConfig := sender.ProvideDefaultKafkaConfig()
+	kafkaSender, err := sender.NewKafkaSender(kafkaConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create batch event publisher
+	batchPublisher := sender.NewBatchEventPublisher(kafkaSender)
+
+	// Create event publisher with proper dependency
+	eventPublisher := NewEventPublisher(batchPublisher)
 
 	// Create partition manager (needed by processors)
 	partitionManager := NewPartitionManager(storeInterface, nil) // Pass nil for provider factory for now

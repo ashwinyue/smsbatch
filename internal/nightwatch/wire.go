@@ -39,7 +39,7 @@ func InitializeWebServer(*Config) (server.Server, error) {
 // InitializeMessagingService 初始化统一消息服务
 func InitializeMessagingService(
 	store store.IStore,
-) (*messaging.UnifiedMessagingService, error) {
+) (*messaging.MessagingService, error) {
 	wire.Build(
 		messaging.ProviderSet,
 	)
