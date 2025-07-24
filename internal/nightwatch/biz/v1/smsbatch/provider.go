@@ -3,7 +3,6 @@ package smsbatch
 import (
 	"github.com/google/wire"
 
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 )
 
@@ -21,9 +20,9 @@ func NewSmsBatchWithDefaults(store store.IStore) ISmsBatchV1 {
 
 // NewEventCoordinatorWithDefaults creates an EventCoordinator with default configuration
 func NewEventCoordinatorWithDefaults(
-	tableStorageService service.TableStorageService,
+	tableStorageStore store.TableStorageStore,
 	storeInterface store.IStore,
 ) (*EventCoordinator, error) {
 	config := DefaultRateLimiterConfig()
-	return InitializeEventCoordinator(tableStorageService, storeInterface, config)
+	return InitializeEventCoordinator(tableStorageStore, storeInterface, config)
 }

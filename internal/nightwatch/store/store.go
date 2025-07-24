@@ -46,6 +46,8 @@ type IStore interface {
 	SmsBatch() SmsBatchStore
 	// SmsRecord 返回SMS记录存储接口，替代Java项目中的Table Storage功能
 	SmsRecord() SmsRecordMongoStore
+	// TableStorage 返回Table Storage存储接口，替代原来service层的TableStorageService
+	TableStorage() TableStorageStore
 	Post() PostStore
 	// ConcretePost ConcretePosts 是一个示例 store 实现，用来演示在 Go 中如何直接与 DB 交互.
 	ConcretePost() ConcretePostStore
@@ -183,6 +185,24 @@ func (store *datastore) SmsRecord() SmsRecordMongoStore {
 // ConcretePost 返回一个实现了 ConcretePostStore 接口的实例.
 func (store *datastore) ConcretePost() ConcretePostStore {
 	return newConcretePostStore(store)
+}
+
+// TableStorage 返回一个实现了 TableStorageStore 接口的实例.
+func (store *datastore) TableStorage() TableStorageStore {
+	// 使用Azure Table Storage实现
+	// 这里需要从配置中获取Azure连接字符串和表名
+	// 暂时使用默认配置，实际使用时应该从配置文件或环境变量中获取
+	config := &AzureTableConfig{
+		ConnectionString: "DefaultEndpointsProtocol=https;AccountName=your_account;AccountKey=your_key;EndpointSuffix=core.windows.net",
+		TableName:        "smsrecords",
+	}
+	
+	tableStore, err := newTableStorageStore(config)
+	if err != nil {
+		panic("Failed to create Azure Table Storage store: " + err.Error())
+	}
+	
+	return tableStore
 }
 
 // Interaction 返回一个实现了 InteractionStore 接口的实例.

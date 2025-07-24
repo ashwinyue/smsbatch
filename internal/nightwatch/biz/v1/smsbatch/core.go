@@ -5,7 +5,6 @@ import (
 	"go.uber.org/ratelimit"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/messaging/sender"
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
 	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 )
 
@@ -97,7 +96,7 @@ var CoreProviderSet = wire.NewSet(
 // This function is now deprecated in favor of Wire dependency injection
 // Use Wire to create EventCoordinator with proper dependency injection
 func InitializeEventCoordinator(
-	tableStorageService service.TableStorageService,
+	tableStorageStore store.TableStorageStore,
 	storeInterface store.IStore,
 	config *RateLimiterConfig,
 ) (*EventCoordinator, error) {
@@ -121,8 +120,8 @@ func InitializeEventCoordinator(
 	partitionManager := NewPartitionManager(storeInterface, nil) // Pass nil for provider factory for now
 
 	// Create processors with correct parameters
-	preparationProcessor := NewPreparationProcessor(eventPublisher, partitionManager, tableStorageService)
-	deliveryProcessor := NewDeliveryProcessor(partitionManager, eventPublisher, tableStorageService)
+	preparationProcessor := NewPreparationProcessor(eventPublisher, partitionManager, tableStorageStore)
+	deliveryProcessor := NewDeliveryProcessor(partitionManager, eventPublisher, tableStorageStore)
 
 	// Create state manager
 	stateManager := NewStateManager(storeInterface)

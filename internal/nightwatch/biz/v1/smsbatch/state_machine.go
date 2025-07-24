@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/known/smsbatch"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 	jobconditionsutil "github.com/ashwinyue/dcp/internal/pkg/util/jobconditions"
@@ -26,7 +26,7 @@ type StateMachine struct {
 }
 
 // NewStateMachine creates a new StateMachine instance
-func NewStateMachine(smsBatch *model.SmsBatchM, watcher interface{}, tableStorageService service.TableStorageService) *StateMachine {
+func NewStateMachine(smsBatch *model.SmsBatchM, watcher interface{}, tableStorageStore store.TableStorageStore) *StateMachine {
 	// Create a basic EventCoordinator
 	// Full dependency injection with all processors is handled at the core package level
 	eventCoordinator := &EventCoordinator{}

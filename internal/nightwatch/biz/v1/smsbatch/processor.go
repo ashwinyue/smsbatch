@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ashwinyue/dcp/internal/nightwatch/model"
-	"github.com/ashwinyue/dcp/internal/nightwatch/service"
+	"github.com/ashwinyue/dcp/internal/nightwatch/store"
 	"github.com/ashwinyue/dcp/internal/pkg/log"
 )
 
@@ -14,15 +14,15 @@ import (
 type PreparationProcessor struct {
 	eventPublisher      *EventPublisher
 	partitionManager    *PartitionManager
-	tableStorageService service.TableStorageService
+	tableStorageStore   store.TableStorageStore
 }
 
 // NewPreparationProcessor creates a new PreparationProcessor instance
-func NewPreparationProcessor(eventPublisher *EventPublisher, partitionManager *PartitionManager, tableStorageService service.TableStorageService) *PreparationProcessor {
+func NewPreparationProcessor(eventPublisher *EventPublisher, partitionManager *PartitionManager, tableStorageStore store.TableStorageStore) *PreparationProcessor {
 	return &PreparationProcessor{
 		eventPublisher:      eventPublisher,
 		partitionManager:    partitionManager,
-		tableStorageService: tableStorageService,
+		tableStorageStore:   tableStorageStore,
 	}
 }
 
@@ -64,12 +64,12 @@ func (pp *PreparationProcessor) Execute(ctx context.Context, sm *model.SmsBatchM
 
 	// 从MongoDB中读取SMS记录数据
 	defaultBatchSize := 1000 // Default batch size for reading
-	smsRecords, err := pp.tableStorageService.ReadSmsRecordsByBatch(ctx, sm.BatchID, defaultBatchSize)
+	smsRecords, err := pp.tableStorageStore.ReadSmsRecordsByBatch(ctx, sm.BatchID, defaultBatchSize)
 	if err != nil {
 		// 如果按批次ID读取失败，尝试按Table Storage名称读取（兼容Java项目）
 		if sm.TableStorageName != "" {
 			log.Infow("Fallback to reading by table storage name", "table_storage_name", sm.TableStorageName)
-			smsRecords, err = pp.tableStorageService.ReadSmsRecords(ctx, sm.TableStorageName, defaultBatchSize)
+			smsRecords, err = pp.tableStorageStore.ReadSmsRecords(ctx, sm.TableStorageName, defaultBatchSize)
 			if err != nil {
 				return fmt.Errorf("failed to read SMS records from storage: %w", err)
 			}
@@ -112,17 +112,17 @@ func (pp *PreparationProcessor) shouldSkipOnIdempotency(sm *model.SmsBatchM, pha
 
 // DeliveryProcessor handles SMS batch delivery phase processing
 type DeliveryProcessor struct {
-	partitionManager    *PartitionManager
-	eventPublisher      *EventPublisher
-	tableStorageService service.TableStorageService
+	partitionManager  *PartitionManager
+	eventPublisher    *EventPublisher
+	tableStorageStore store.TableStorageStore
 }
 
 // NewDeliveryProcessor creates a new DeliveryProcessor instance
-func NewDeliveryProcessor(partitionManager *PartitionManager, eventPublisher *EventPublisher, tableStorageService service.TableStorageService) *DeliveryProcessor {
+func NewDeliveryProcessor(partitionManager *PartitionManager, eventPublisher *EventPublisher, tableStorageStore store.TableStorageStore) *DeliveryProcessor {
 	return &DeliveryProcessor{
-		partitionManager:    partitionManager,
-		eventPublisher:      eventPublisher,
-		tableStorageService: tableStorageService,
+		partitionManager:  partitionManager,
+		eventPublisher:    eventPublisher,
+		tableStorageStore: tableStorageStore,
 	}
 }
 
@@ -151,12 +151,12 @@ func (dp *DeliveryProcessor) Execute(ctx context.Context, sm *model.SmsBatchM) e
 	log.Infow("Reading SMS records for delivery from MongoDB storage", "batch_id", sm.BatchID)
 
 	// 从MongoDB中读取准备好的SMS记录数据
-	smsRecords, err := dp.tableStorageService.ReadSmsRecordsByBatch(ctx, sm.BatchID, 0) // 0表示读取所有记录
+	smsRecords, err := dp.tableStorageStore.ReadSmsRecordsByBatch(ctx, sm.BatchID, 0) // 0表示读取所有记录
 	if err != nil {
 		// 如果按批次ID读取失败，尝试按Table Storage名称读取（兼容Java项目）
 		if sm.TableStorageName != "" {
 			log.Infow("Fallback to reading by table storage name for delivery", "table_storage_name", sm.TableStorageName)
-			smsRecords, err = dp.tableStorageService.ReadSmsRecords(ctx, sm.TableStorageName, 0)
+			smsRecords, err = dp.tableStorageStore.ReadSmsRecords(ctx, sm.TableStorageName, 0)
 			if err != nil {
 				return fmt.Errorf("failed to read SMS records from storage for delivery: %w", err)
 			}
